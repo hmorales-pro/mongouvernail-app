@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Settings,
   Database,
@@ -167,7 +167,11 @@ export default function SettingsPage() {
   const fileInputRef = useRef(null)
 
   const snapshots = useMemo(() => getSnaps(), [activeWorkspaceId, snapVersion])
-  const storage = useMemo(() => getStorageUsage(), [activeWorkspaceId, snapVersion])
+
+  const [storage, setStorage] = useState({ bytes: 0, formatted: '...' })
+  useEffect(() => {
+    getStorageUsage().then(setStorage)
+  }, [activeWorkspaceId, snapVersion])
 
   const handleCreateSnapshot = () => {
     if (!snapName.trim()) return

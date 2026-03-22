@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ArrowRight, Sun, Moon, Database, Sparkles } from 'lucide-react'
 import useStore from '../store/useStore'
+import Logo from './Logo'
 
 const ACTIVITES = [
   { value: 'freelance', label: 'Freelance / Indépendant' },
@@ -21,7 +22,7 @@ export default function Onboarding() {
   const [activite, setActivite] = useState('')
   const [theme, setTheme] = useState('light')
   const [workspaceName, setWorkspaceName] = useState('')
-  const [withDemoData, setWithDemoData] = useState(true)
+
 
   const currentStep = STEPS[step]
   const canNext =
@@ -43,7 +44,6 @@ export default function Onboarding() {
       activite,
       theme,
       workspaceName: workspaceName.trim() || 'Principal',
-      withDemoData,
     })
   }
 
@@ -76,7 +76,7 @@ export default function Onboarding() {
         {/* Step: Prénom */}
         {currentStep === 'prenom' && (
           <div className="text-center">
-            <div className="text-4xl mb-4">⛵</div>
+            <div className="mb-4 flex justify-center"><Logo size={56} /></div>
             <h1 className="text-2xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
               Bienvenue sur MonGouvernail
             </h1>
@@ -185,7 +185,7 @@ export default function Onboarding() {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium mb-2 text-left" style={{ color: 'var(--text-secondary)' }}>
-                  Nom de l'espace
+                  Nom de votre espace de travail
                 </label>
                 <input
                   value={workspaceName}
@@ -201,28 +201,13 @@ export default function Onboarding() {
                 style={{ background: 'var(--bg-nested)', border: '1px solid var(--border-secondary)' }}
               >
                 <div className="flex items-start gap-3">
-                  <div className="mt-0.5">
-                    <button
-                      onClick={() => setWithDemoData(!withDemoData)}
-                      className="w-5 h-5 rounded flex items-center justify-center transition-all"
-                      style={{
-                        background: withDemoData ? '#3B82F6' : 'transparent',
-                        border: withDemoData ? '2px solid #3B82F6' : '2px solid var(--border-primary)',
-                      }}
-                    >
-                      {withDemoData && (
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
+                  <Database size={16} className="mt-0.5 flex-shrink-0" style={{ color: '#3B82F6' }} />
                   <div>
                     <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                      Inclure des données de démo
+                      Un espace « Démo » sera aussi créé
                     </p>
                     <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                      Clients, projets et transactions fictifs pour explorer l'interface. Vous pourrez les supprimer ensuite.
+                      Il contient des clients, projets et transactions fictifs pour explorer l'interface. Vous pourrez le supprimer à tout moment.
                     </p>
                   </div>
                 </div>
@@ -247,10 +232,10 @@ export default function Onboarding() {
               className="inline-flex flex-col gap-1 text-left text-[11px] rounded-lg p-3 mt-2 mb-4"
               style={{ background: 'var(--bg-nested)', color: 'var(--text-secondary)' }}
             >
-              <span>⛵ Espace : <strong>{workspaceName || 'Principal'}</strong></span>
+              <span className="flex items-center gap-1"><Logo size={12} /> Espace : <strong>{workspaceName || 'Principal'}</strong></span>
               <span>{theme === 'light' ? '☀️' : '🌙'} Thème : <strong>{theme === 'light' ? 'Clair' : 'Sombre'}</strong></span>
               {activite && <span>💼 Activité : <strong>{ACTIVITES.find((a) => a.value === activite)?.label || activite}</strong></span>}
-              <span>{withDemoData ? '📊 Avec données de démo' : '📭 Démarrage vide'}</span>
+              <span>📊 Espace « Démo » inclus</span>
             </div>
           </div>
         )}

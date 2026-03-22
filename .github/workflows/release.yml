@@ -40,6 +40,11 @@ jobs:
         with:
           targets: ${{ matrix.rust_target }}
 
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -56,4 +61,5 @@ jobs:
           releaseBody: 'Téléchargez les installateurs ci-dessous pour votre plateforme.'
           releaseDraft: true
           prerelease: false
+          tauriScript: npx tauri
           args: ${{ matrix.args }}

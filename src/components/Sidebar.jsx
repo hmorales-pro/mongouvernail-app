@@ -17,6 +17,8 @@ import {
   Check,
 } from 'lucide-react'
 import useStore from '../store/useStore'
+import Logo from './Logo'
+import { getAppVersion } from '../utils/updateChecker'
 
 const links = [
   { to: '/', icon: LayoutDashboard, label: 'Command Center' },
@@ -31,6 +33,7 @@ function WorkspaceSelector() {
   const [open, setOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
+  const [withDemo, setWithDemo] = useState(false)
   const workspaces = useStore((s) => s.workspaces)
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId)
   const activeWorkspaceName = useStore((s) => s.activeWorkspaceName)
@@ -40,9 +43,10 @@ function WorkspaceSelector() {
 
   const handleCreate = async () => {
     if (!newName.trim()) return
-    const ws = createWorkspace(newName.trim())
+    const ws = await createWorkspace(newName.trim(), { withDemoData: withDemo })
     await switchWorkspace(ws.id)
     setNewName('')
+    setWithDemo(false)
     setCreating(false)
     setOpen(false)
   }
@@ -68,10 +72,12 @@ function WorkspaceSelector() {
         <>
           <div className="fixed inset-0 z-40" onClick={() => { setOpen(false); setCreating(false) }} />
           <div
-            className="absolute left-2 right-2 top-full mt-1 z-50 rounded-lg shadow-lg overflow-hidden"
+            className="absolute left-0 top-full mt-1 z-50 rounded-lg shadow-lg overflow-hidden"
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border-primary)',
+              minWidth: 230,
+              right: 0,
             }}
           >
             <div className="p-1.5">
@@ -104,21 +110,35 @@ function WorkspaceSelector() {
 
             <div style={{ borderTop: '1px solid var(--border-secondary)' }} className="p-1.5">
               {creating ? (
-                <div className="flex items-center gap-1.5 px-1">
-                  <input
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') setCreating(false) }}
-                    placeholder="Nom…"
-                    className="flex-1 t-input rounded px-2 py-1 text-xs outline-none"
-                    autoFocus
-                  />
-                  <button
-                    onClick={handleCreate}
-                    className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-500"
+                <div className="px-1 space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') { setCreating(false); setWithDemo(false) } }}
+                      placeholder="Nom…"
+                      className="flex-1 t-input rounded px-2 py-1 text-xs outline-none"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleCreate}
+                      className="w-6 h-6 flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-500 flex-shrink-0"
+                    >
+                      <Check size={13} />
+                    </button>
+                  </div>
+                  <label
+                    className="flex items-center gap-1.5 px-0.5 cursor-pointer"
+                    style={{ color: 'var(--text-tertiary)' }}
                   >
-                    OK
-                  </button>
+                    <input
+                      type="checkbox"
+                      checked={withDemo}
+                      onChange={(e) => setWithDemo(e.target.checked)}
+                      className="w-3 h-3 rounded accent-blue-500"
+                    />
+                    <span className="text-[10px]">Inclure des données de démo</span>
+                  </label>
                 </div>
               ) : (
                 <button
@@ -160,7 +180,7 @@ export default function Sidebar() {
           className="text-base font-semibold tracking-tight flex items-center gap-2"
           style={{ color: 'var(--text-primary)' }}
         >
-          <span className="text-lg">⛵</span>
+          <Logo size={22} />
           MonGouvernail
         </h1>
         <div className="mt-2">
@@ -257,6 +277,13 @@ export default function Sidebar() {
             ⌘K
           </kbd>
         </button>
+
+        <div
+          className="px-3 pt-1 pb-0.5 text-[10px] font-mono"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          v{getAppVersion()}
+        </div>
       </div>
     </aside>
   )

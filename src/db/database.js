@@ -1,13 +1,14 @@
 import initSqlJs from 'sql.js'
-import {
-  ensureDefaultWorkspace,
-  getDbKeyForWorkspace,
-  getActiveWorkspaceId,
-} from './dbManager'
+import { saveDB, loadDB } from './storage'
+import { ensureDefaultWorkspace } from './dbManager'
 
 let db = null
 let SQL = null
-let currentDbKey = null
+let currentWorkspaceId = null
+
+// Debounced flush: after each write, schedule a save to disk
+let flushTimer = null
+const FLUSH_DELAY = 500 // ms — batches rapid writes
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS clients (
@@ -131,48 +132,65 @@ function runMigrations() {
 
 // ── Persistence ──
 
-function saveToLocalStorage() {
-  if (!db || !currentDbKey) return
-  const data = db.export()
-  const buffer = new Uint8Array(data)
-  const blob = new Blob([buffer])
-  const reader = new FileReader()
-  reader.onload = () => {
-    localStorage.setItem(currentDbKey, reader.result)
-  }
-  reader.readAsDataURL(blob)
+/**
+ * Schedule a flush to persistent storage (debounced).
+ * Called automatically after each write operation.
+ */
+function scheduleFlush() {
+  if (flushTimer) clearTimeout(flushTimer)
+  flushTimer = setTimeout(() => {
+    flushToDisk()
+  }, FLUSH_DELAY)
 }
 
-function loadFromLocalStorage(key) {
-  const saved = localStorage.getItem(key)
-  if (!saved) return null
-  try {
-    const binary = atob(saved.split(',')[1])
-    const bytes = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i)
-    }
-    return bytes
-  } catch {
-    return null
+/**
+ * Immediately flush current DB to persistent storage.
+ * Returns a promise. Use this when you need to guarantee data is saved
+ * (e.g., before switching workspace).
+ */
+export async function flushToDisk(targetWorkspaceId = null) {
+  if (!db) return
+  const wsId = targetWorkspaceId || currentWorkspaceId
+  if (!wsId) return
+  if (flushTimer) {
+    clearTimeout(flushTimer)
+    flushTimer = null
   }
+  const data = db.export()
+  const buffer = new Uint8Array(data)
+  await saveDB('db', wsId, buffer)
+}
+
+/**
+ * Synchronous persist: exports the DB and saves it immediately.
+ * Uses the storage layer which handles both Tauri (fs) and browser (localStorage).
+ * Since saveDB is async, this schedules an immediate flush.
+ */
+export function persist() {
+  scheduleFlush()
+}
+
+/**
+ * Synchronous persist that blocks until complete.
+ * For use in critical paths (seeding demo data before switching workspace).
+ */
+export async function persistSync() {
+  await flushToDisk()
 }
 
 // ── Init ──
 
 export async function initDB(workspaceId = null) {
-  // Ensure we have sql.js loaded
   if (!SQL) {
     SQL = await initSqlJs({ locateFile: () => '/sql-wasm.wasm' })
   }
 
   // Ensure default workspace exists
-  const activeId = workspaceId || ensureDefaultWorkspace()
-  const dbKey = getDbKeyForWorkspace(activeId)
-  currentDbKey = dbKey
+  const activeId = workspaceId || await ensureDefaultWorkspace()
+  currentWorkspaceId = activeId
 
   // Load or create DB
-  const saved = loadFromLocalStorage(dbKey)
+  const saved = await loadDB('db', activeId)
   if (saved) {
     db = new SQL.Database(saved)
     db.run(SCHEMA) // Ensure new tables exist
@@ -182,22 +200,26 @@ export async function initDB(workspaceId = null) {
     db.run(SCHEMA)
   }
 
-  saveToLocalStorage()
+  await flushToDisk()
   return db
 }
 
 /**
- * Switch to a different workspace DB (reloads from localStorage).
+ * Switch to a different workspace DB.
  */
 export async function switchDB(workspaceId) {
   if (!SQL) {
     SQL = await initSqlJs({ locateFile: () => '/sql-wasm.wasm' })
   }
 
-  const dbKey = getDbKeyForWorkspace(workspaceId)
-  currentDbKey = dbKey
+  // Save current DB before switching
+  if (db && currentWorkspaceId) {
+    await flushToDisk()
+  }
 
-  const saved = loadFromLocalStorage(dbKey)
+  currentWorkspaceId = workspaceId
+
+  const saved = await loadDB('db', workspaceId)
   if (saved) {
     db = new SQL.Database(saved)
     db.run(SCHEMA)
@@ -207,7 +229,7 @@ export async function switchDB(workspaceId) {
     db.run(SCHEMA)
   }
 
-  saveToLocalStorage()
+  await flushToDisk()
   return db
 }
 
@@ -215,8 +237,8 @@ export function getDB() {
   return db
 }
 
-export function persist() {
-  saveToLocalStorage()
+export function getCurrentWorkspaceId() {
+  return currentWorkspaceId
 }
 
 // ── Generic helpers ──
@@ -261,7 +283,7 @@ function queryOne(sql, params = []) {
 function run(sql, params = []) {
   if (!db) return
   db.run(sql, params)
-  persist()
+  persist() // schedules debounced flush
 }
 
 // ── Clients ──
@@ -652,7 +674,7 @@ export async function importDB(arrayBuffer) {
     SQL = await initSqlJs({ locateFile: () => '/sql-wasm.wasm' })
   }
   db = new SQL.Database(new Uint8Array(arrayBuffer))
-  persist()
+  await flushToDisk()
 }
 
 // ── Reset (clear all data in current workspace) ──

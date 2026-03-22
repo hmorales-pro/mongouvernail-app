@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { initStorage, migrateFromLocalStorage } from '../db/storage'
 import {
   initDB,
   switchDB,
@@ -12,8 +13,11 @@ import {
   settingsDB,
   resetDB as resetDatabase,
   persist as persistDB,
+  persistSync as persistDBSync,
+  flushToDisk,
 } from '../db/database'
 import {
+  initManager,
   getWorkspaces,
   getActiveWorkspaceId,
   getActiveWorkspace,
@@ -28,7 +32,6 @@ import {
   restoreSnapshot,
   deleteSnapshot,
   autoBackup,
-  restoreAutoBackup,
   exportWorkspaceAsFile,
   importWorkspaceFromFile,
   getStorageUsage,
@@ -85,18 +88,19 @@ const useStore = create(
       //  INITIALIZE
       // ══════════════════════════
       initialize: async () => {
+        // 1. Init storage layer (detects Tauri vs browser)
+        await initStorage()
+
+        // 2. Migrate localStorage → filesystem if running in Tauri for the first time
+        await migrateFromLocalStorage()
+
+        // 3. Init workspace manager (loads registries into memory)
+        await initManager()
+
+        // 4. Init SQLite DB
         await initDB()
 
         const focus = settingsDB.get('focus', '')
-
-        // Only auto-seed if onboarding was already completed
-        // (otherwise onboarding will decide whether to seed or not)
-        if (get().onboardingDone) {
-          const existingClients = clientsDB.getAll()
-          if (existingClients.length === 0) {
-            get()._seedDatabase()
-          }
-        }
 
         get()._refreshAll()
         get()._refreshWorkspaces()
@@ -104,8 +108,8 @@ const useStore = create(
       },
 
       // ── Onboarding ──
-      completeOnboarding: (options = {}) => {
-        const { prenom, activite, theme, workspaceName, withDemoData } = options
+      completeOnboarding: async (options = {}) => {
+        const { prenom, activite, theme, workspaceName } = options
 
         if (prenom) set((s) => ({ userProfile: { ...s.userProfile, prenom } }))
         if (activite) set((s) => ({ userProfile: { ...s.userProfile, activite } }))
@@ -114,19 +118,26 @@ const useStore = create(
         // Rename default workspace if a name was provided
         if (workspaceName) {
           const wsId = getActiveWorkspaceId()
-          if (wsId) renameWorkspace(wsId, workspaceName)
-          get()._refreshWorkspaces()
+          if (wsId) await renameWorkspace(wsId, workspaceName)
         }
 
-        // Seed demo data if requested
-        if (withDemoData) {
-          const existingClients = clientsDB.getAll()
-          if (existingClients.length === 0) {
-            get()._seedDatabase()
-            get()._refreshAll()
-          }
+        // Create "Démo" workspace with seed data
+        const demoWs = await createWorkspace('Démo', { color: '#F59E0B' })
+        await switchWs(demoWs.id)
+        await switchDB(demoWs.id)
+        get()._seedDatabase()
+        await persistDBSync()
+
+        // Switch back to the user's main workspace
+        const reg = getWorkspaces()
+        const mainWs = reg.find((w) => w.id !== demoWs.id)
+        if (mainWs) {
+          await switchWs(mainWs.id)
+          await switchDB(mainWs.id)
         }
 
+        get()._refreshAll()
+        get()._refreshWorkspaces()
         set({ onboardingDone: true })
       },
 
@@ -144,40 +155,49 @@ const useStore = create(
         })
       },
 
-      createWorkspace: (name, options = {}) => {
-        const ws = createWorkspace(name, options)
+      createWorkspace: async (name, options = {}) => {
+        const ws = await createWorkspace(name, options)
+
+        // If demo data requested, seed the new workspace
+        if (options.withDemoData) {
+          const currentWsId = getActiveWorkspaceId()
+          await switchWs(ws.id)
+          await switchDB(ws.id)
+          get()._seedDatabase()
+          await persistDBSync()
+          // Switch back to current workspace
+          await switchWs(currentWsId)
+          await switchDB(currentWsId)
+        }
+
         get()._refreshWorkspaces()
         return ws
       },
 
       switchWorkspace: async (workspaceId) => {
         set({ dbReady: false })
-        switchWs(workspaceId)
+        await switchWs(workspaceId)
         await switchDB(workspaceId)
 
         const focus = settingsDB.get('focus', '')
-        const existingClients = clientsDB.getAll()
-        if (existingClients.length === 0) {
-          // Empty workspace, don't auto-seed
-        }
 
         get()._refreshAll()
         get()._refreshWorkspaces()
         set({ dbReady: true, focus })
       },
 
-      renameWorkspace: (id, name) => {
-        renameWorkspace(id, name)
+      renameWorkspace: async (id, name) => {
+        await renameWorkspace(id, name)
         get()._refreshWorkspaces()
       },
 
-      updateWorkspaceColor: (id, color) => {
-        updateWorkspaceColor(id, color)
+      updateWorkspaceColor: async (id, color) => {
+        await updateWorkspaceColor(id, color)
         get()._refreshWorkspaces()
       },
 
       deleteWorkspace: async (id) => {
-        const newActiveId = deleteWs(id)
+        const newActiveId = await deleteWs(id)
         if (newActiveId && newActiveId !== get().activeWorkspaceId) {
           await get().switchWorkspace(newActiveId)
         }
@@ -187,9 +207,9 @@ const useStore = create(
       // ══════════════════════════
       //  SNAPSHOTS
       // ══════════════════════════
-      createSnapshot: (name) => {
+      createSnapshot: async (name) => {
         const wsId = getActiveWorkspaceId()
-        return createSnapshot(wsId, name)
+        return await createSnapshot(wsId, name)
       },
 
       getSnapshots: () => {
@@ -200,34 +220,21 @@ const useStore = create(
       getAllSnapshots: () => getSnapshots(),
 
       restoreSnapshot: async (snapshotId) => {
-        try {
-          const wsId = restoreSnapshot(snapshotId)
-          await switchDB(wsId)
-          get()._refreshAll()
-        } catch {
-          // Might be an auto-backup, try that
-          const wsId = restoreAutoBackup(snapshotId)
-          await switchDB(wsId)
-          get()._refreshAll()
-        }
-      },
-
-      restoreAutoBackup: async (backupId) => {
-        const wsId = restoreAutoBackup(backupId)
+        const wsId = await restoreSnapshot(snapshotId)
         await switchDB(wsId)
         get()._refreshAll()
       },
 
-      deleteSnapshot: (id) => {
-        deleteSnapshot(id)
+      deleteSnapshot: async (id) => {
+        await deleteSnapshot(id)
       },
 
       // ══════════════════════════
       //  EXPORT / IMPORT
       // ══════════════════════════
-      exportWorkspace: () => {
+      exportWorkspace: async () => {
         const wsId = getActiveWorkspaceId()
-        exportWorkspaceAsFile(wsId)
+        await exportWorkspaceAsFile(wsId)
       },
 
       importWorkspace: async (file, targetId = null) => {
@@ -240,9 +247,13 @@ const useStore = create(
       // ══════════════════════════
       //  AUTO-BACKUP
       // ══════════════════════════
-      _autoBackup: () => {
+      _autoBackup: async () => {
         const wsId = getActiveWorkspaceId()
-        if (wsId) autoBackup(wsId)
+        if (wsId) {
+          // Flush current state to disk first so the backup captures latest
+          await flushToDisk()
+          await autoBackup(wsId)
+        }
       },
 
       // ── Internal: seed database ──
@@ -301,8 +312,8 @@ const useStore = create(
         clientsDB.update(id, data)
         get()._refreshClients()
       },
-      deleteClient: (id) => {
-        get()._autoBackup()
+      deleteClient: async (id) => {
+        await get()._autoBackup()
         clientsDB.softDelete(id)
         get()._refreshClients()
         get()._refreshTrash()
@@ -323,8 +334,8 @@ const useStore = create(
         projectsDB.update(id, data)
         get()._refreshProjects()
       },
-      deleteProject: (id) => {
-        get()._autoBackup()
+      deleteProject: async (id) => {
+        await get()._autoBackup()
         projectsDB.softDelete(id)
         get()._refreshProjects()
         get()._refreshTrash()
@@ -341,8 +352,8 @@ const useStore = create(
         tasksDB.update(id, data)
         get()._refreshTasks()
       },
-      deleteTask: (id) => {
-        get()._autoBackup()
+      deleteTask: async (id) => {
+        await get()._autoBackup()
         tasksDB.softDelete(id)
         get()._refreshTasks()
         get()._refreshTrash()
@@ -359,8 +370,8 @@ const useStore = create(
         transactionsDB.update(id, data)
         get()._refreshTransactions()
       },
-      deleteTransaction: (id) => {
-        get()._autoBackup()
+      deleteTransaction: async (id) => {
+        await get()._autoBackup()
         transactionsDB.softDelete(id)
         get()._refreshTransactions()
         get()._refreshTrash()
@@ -381,8 +392,8 @@ const useStore = create(
         goalsDB.updateValue(id, value)
         get()._refreshGoals()
       },
-      deleteGoal: (id) => {
-        get()._autoBackup()
+      deleteGoal: async (id) => {
+        await get()._autoBackup()
         goalsDB.softDelete(id)
         get()._refreshGoals()
         get()._refreshTrash()
@@ -423,8 +434,8 @@ const useStore = create(
       // ══════════════════════════
       //  RESET
       // ══════════════════════════
-      resetData: () => {
-        get()._autoBackup()
+      resetData: async () => {
+        await get()._autoBackup()
         resetDatabase()
         get()._seedDatabase()
         get()._refreshAll()
