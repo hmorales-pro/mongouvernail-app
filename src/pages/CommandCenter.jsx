@@ -13,9 +13,11 @@ import {
   CircleDollarSign,
   ChevronRight,
   Sparkles,
+  FileText,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import useStore from '../store/useStore'
+import useNotifications from '../hooks/useNotifications'
 import {
   formatCurrency,
   formatDateShort,
@@ -185,6 +187,21 @@ export default function CommandCenter() {
       })
       .reduce((sum, t) => sum + (t.montant_ttc || 0), 0)
   }, [transactions])
+
+  const getRecentDocuments = useStore((s) => s.getRecentDocuments)
+  const recentNotes = useMemo(() => {
+    try {
+      const recent = getRecentDocuments(5)
+      return recent.filter((d) => d.mime_type?.includes('text/') || d.nom?.endsWith('.md'))
+    } catch { return [] }
+  }, [getRecentDocuments, tasks, transactions]) // re-run when data changes
+
+  const notifications = useNotifications()
+  const dismissedIds = useStore((s) => s.notificationSettings?.dismissedIds || [])
+  const dismissNotification = useStore((s) => s.dismissNotification)
+  const activeAlerts = notifications.filter((n) => !dismissedIds.includes(n.id))
+  const criticalAlerts = activeAlerts.filter((n) => n.severity === 'critical')
+  const warningAlerts = activeAlerts.filter((n) => n.severity === 'warning')
 
   const [editingFocus, setEditingFocus] = useState(false)
   const [focusDraft, setFocusDraft] = useState(focus)
@@ -360,6 +377,72 @@ export default function CommandCenter() {
           </p>
         )}
       </div>
+
+      {/* ── Alertes ── */}
+      {activeAlerts.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle size={14} style={{ color: criticalAlerts.length > 0 ? '#EF4444' : '#F59E0B' }} />
+            <h2
+              className="text-[13px] font-semibold tracking-wide"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              Alertes
+            </h2>
+            <span
+              className="text-[11px] font-medium px-1.5 py-0.5 rounded-md"
+              style={{
+                color: criticalAlerts.length > 0 ? '#EF4444' : '#F59E0B',
+                background: criticalAlerts.length > 0 ? '#EF444412' : '#F59E0B12',
+              }}
+            >
+              {activeAlerts.length}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            {activeAlerts.slice(0, 6).map((alert) => {
+              const isCritical = alert.severity === 'critical'
+              const color = isCritical ? '#EF4444' : alert.severity === 'warning' ? '#F59E0B' : '#3B82F6'
+              return (
+                <div
+                  key={alert.id}
+                  className="flex items-start gap-2.5 p-3 rounded-lg group"
+                  style={{
+                    background: color + '08',
+                    border: `1px solid ${color}20`,
+                  }}
+                >
+                  <div
+                    className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5"
+                    style={{ background: color, boxShadow: isCritical ? `0 0 6px ${color}40` : 'none' }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                      {alert.title}
+                    </p>
+                    <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                      {alert.message}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => dismissNotification(alert.id)}
+                    className="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                    style={{ color: 'var(--text-muted)' }}
+                    title="Masquer"
+                  >
+                    <span className="text-[10px]">✕</span>
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+          {activeAlerts.length > 6 && (
+            <p className="text-[11px] mt-2 text-center" style={{ color: 'var(--text-tertiary)' }}>
+              + {activeAlerts.length - 6} autre{activeAlerts.length - 6 > 1 ? 's' : ''} notification{activeAlerts.length - 6 > 1 ? 's' : ''}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* ── Main grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -660,6 +743,50 @@ export default function CommandCenter() {
             </div>
           )}
         </Card>
+
+        {/* Notes récentes */}
+        {recentNotes.length > 0 && (
+          <Card>
+            <SectionHeader
+              icon={FileText}
+              iconColor="#06B6D4"
+              title="Notes récentes"
+              count={recentNotes.length}
+              to="/documents"
+              linkLabel="Tous les documents"
+            />
+            <div className="space-y-1">
+              {recentNotes.map((note) => (
+                <Link
+                  key={note.id}
+                  to="/documents"
+                  className="flex items-center gap-2.5 py-2.5 px-3 rounded-lg transition-colors"
+                  style={{ background: 'transparent' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-nested)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <div
+                    className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
+                    style={{ background: '#06B6D415' }}
+                  >
+                    <FileText size={13} style={{ color: '#06B6D4' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] truncate" style={{ color: 'var(--text-primary)' }}>
+                      {note.nom?.replace(/\.md$/, '') || 'Sans titre'}
+                    </p>
+                    <p className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                      {note.updated_at ? formatDateShort(note.updated_at) : '—'}
+                      {note.tags?.length > 0 && (
+                        <span> · {note.tags.slice(0, 2).join(', ')}</span>
+                      )}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   )

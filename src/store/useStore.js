@@ -9,6 +9,8 @@ import {
   tasksDB,
   transactionsDB,
   goalsDB,
+  documentsDB,
+  docFoldersDB,
   trashDB,
   settingsDB,
   resetDB as resetDatabase,
@@ -48,6 +50,9 @@ const useStore = create(
       dbReady: false,
       onboardingDone: false,
 
+      // ── Personalisation ──
+      commandCenterName: 'Command Center',
+
       // ── User profile (persisted via Zustand) ──
       userProfile: {
         prenom: '',
@@ -67,7 +72,18 @@ const useStore = create(
       transactions: [],
       goals: [],
       trashCount: 0,
+      documents: [],
+      docFolders: [],
       customLists: {},
+      // Notifications / rappels
+      notificationSettings: {
+        delaiJours: 3,       // rappel X jours avant échéance
+        dismissedIds: [],    // notifs manuellement masquées
+      },
+
+      // Préférences Documents
+      folderClickMode: 'single', // 'single' | 'double'
+
       // Modules visibles dans la sidebar (tous activés par défaut)
       enabledModules: {
         clients: true,
@@ -76,15 +92,36 @@ const useStore = create(
         objectifs: true,
         taches: true,
         calendrier: true,
+        documents: true,
       },
+
+      // ── Personalisation ──
+      setCommandCenterName: (name) => set({ commandCenterName: name }),
 
       // ── Theme ──
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set((s) => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
 
+      // ── Document prefs ──
+      setFolderClickMode: (mode) => set({ folderClickMode: mode }),
+
       // ── Modules sidebar ──
       toggleModule: (key) => set((s) => ({
         enabledModules: { ...s.enabledModules, [key]: !s.enabledModules[key] },
+      })),
+
+      // ── Notifications ──
+      setNotificationDelay: (days) => set((s) => ({
+        notificationSettings: { ...s.notificationSettings, delaiJours: days },
+      })),
+      dismissNotification: (id) => set((s) => ({
+        notificationSettings: {
+          ...s.notificationSettings,
+          dismissedIds: [...(s.notificationSettings.dismissedIds || []), id],
+        },
+      })),
+      clearDismissed: () => set((s) => ({
+        notificationSettings: { ...s.notificationSettings, dismissedIds: [] },
       })),
 
       // ── User profile ──
@@ -305,6 +342,8 @@ const useStore = create(
           tasks: tasksDB.getAll(),
           transactions: transactionsDB.getAll(),
           goals: goalsDB.getAll(),
+          documents: documentsDB.getAll(),
+          docFolders: docFoldersDB.getAll(),
           trashCount: trashDB.getCount(),
           customLists: settingsDB.get('custom_lists', {}),
         })
@@ -323,6 +362,7 @@ const useStore = create(
       _refreshTasks: () => set({ tasks: tasksDB.getAll() }),
       _refreshTransactions: () => set({ transactions: transactionsDB.getAll() }),
       _refreshGoals: () => set({ goals: goalsDB.getAll() }),
+      _refreshDocuments: () => set({ documents: documentsDB.getAll(), docFolders: docFoldersDB.getAll() }),
       _refreshTrash: () => set({ trashCount: trashDB.getCount() }),
 
       // ══════════════════════════
@@ -402,6 +442,49 @@ const useStore = create(
       },
 
       // ══════════════════════════
+      //  DOCUMENTS & FOLDERS
+      // ══════════════════════════
+      addDocFolder: (folder) => {
+        docFoldersDB.add(folder)
+        get()._refreshDocuments()
+      },
+      updateDocFolder: (id, data) => {
+        docFoldersDB.update(id, data)
+        get()._refreshDocuments()
+      },
+      deleteDocFolder: (id) => {
+        docFoldersDB.remove(id)
+        get()._refreshDocuments()
+      },
+      getDocumentById: (id) => documentsDB.getById(id),
+      searchDocuments: (query) => documentsDB.search(query),
+      getRecentDocuments: (limit) => documentsDB.getRecent(limit),
+      getDocumentsByProject: (projectId) => documentsDB.getByProject(projectId),
+      getDocumentsByClient: (clientId) => documentsDB.getByClient(clientId),
+      addDocument: (doc) => {
+        const id = documentsDB.add(doc)
+        get()._refreshDocuments()
+        return id
+      },
+      updateDocument: (id, data) => {
+        documentsDB.update(id, data)
+        get()._refreshDocuments()
+      },
+      toggleDocPin: (id) => {
+        const doc = documentsDB.getById(id)
+        if (doc) {
+          documentsDB.update(id, { epingle: !doc.epingle })
+          get()._refreshDocuments()
+        }
+      },
+      deleteDocument: async (id) => {
+        await get()._autoBackup()
+        documentsDB.softDelete(id)
+        get()._refreshDocuments()
+        get()._refreshTrash()
+      },
+
+      // ══════════════════════════
       //  GOALS
       // ══════════════════════════
       addGoal: (goal) => {
@@ -474,7 +557,9 @@ const useStore = create(
         commandPaletteOpen: false,
         onboardingDone: state.onboardingDone,
         userProfile: state.userProfile,
+        commandCenterName: state.commandCenterName,
         enabledModules: state.enabledModules,
+        notificationSettings: state.notificationSettings,
       }),
     }
   )

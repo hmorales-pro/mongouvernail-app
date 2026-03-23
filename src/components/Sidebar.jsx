@@ -8,6 +8,7 @@ import {
   Target,
   ListTodo,
   CalendarDays,
+  FileText,
   Command,
   Sun,
   Moon,
@@ -22,13 +23,14 @@ import Logo from './Logo'
 import { getAppVersion } from '../utils/updateChecker'
 
 const links = [
-  { to: '/', icon: LayoutDashboard, label: 'Command Center', key: null },
+  { to: '/', icon: LayoutDashboard, label: '__CC__', key: null },
   { to: '/clients', icon: Users, label: 'Clients', key: 'clients' },
   { to: '/projets', icon: FolderKanban, label: 'Projets', key: 'projets' },
   { to: '/finances', icon: Wallet, label: 'Finances', key: 'finances' },
   { to: '/objectifs', icon: Target, label: 'Objectifs', key: 'objectifs' },
   { to: '/taches', icon: ListTodo, label: 'Tâches', key: 'taches' },
   { to: '/calendrier', icon: CalendarDays, label: 'Calendrier', key: 'calendrier' },
+  { to: '/documents', icon: FileText, label: 'Documents', key: 'documents' },
 ]
 
 function WorkspaceSelector() {
@@ -166,8 +168,11 @@ export default function Sidebar() {
   const toggleTheme = useStore((s) => s.toggleTheme)
   const trashCount = useStore((s) => s.trashCount)
   const enabledModules = useStore((s) => s.enabledModules)
+  const commandCenterName = useStore((s) => s.commandCenterName) || 'Command Center'
 
-  const visibleLinks = links.filter((l) => l.key === null || enabledModules[l.key] !== false)
+  const visibleLinks = links
+    .filter((l) => l.key === null || enabledModules[l.key] !== false)
+    .map((l) => l.label === '__CC__' ? { ...l, label: commandCenterName } : l)
 
   return (
     <aside

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Settings,
+  LayoutDashboard,
   Database,
   Download,
   Upload,
@@ -19,6 +20,9 @@ import {
   Target,
   ListTodo,
   CalendarDays,
+  FileText,
+  Bell,
+  FolderOpen,
 } from 'lucide-react'
 import useStore from '../store/useStore'
 import { getBackupSettings, setBackupSettings } from '../db/dbManager'
@@ -174,6 +178,13 @@ export default function SettingsPage() {
   const updateCustomList = useStore((s) => s.updateCustomList)
   const enabledModules = useStore((s) => s.enabledModules)
   const toggleModule = useStore((s) => s.toggleModule)
+  const notificationSettings = useStore((s) => s.notificationSettings)
+  const setNotificationDelay = useStore((s) => s.setNotificationDelay)
+  const clearDismissed = useStore((s) => s.clearDismissed)
+  const commandCenterName = useStore((s) => s.commandCenterName) || 'Command Center'
+  const setCommandCenterName = useStore((s) => s.setCommandCenterName)
+  const folderClickMode = useStore((s) => s.folderClickMode) || 'single'
+  const setFolderClickMode = useStore((s) => s.setFolderClickMode)
   const confirm = useConfirm()
 
   const [snapName, setSnapName] = useState('')
@@ -256,6 +267,23 @@ export default function SettingsPage() {
         <p className="text-[11px] mb-4" style={{ color: 'var(--text-tertiary)' }}>
           Activez ou désactivez les modules affichés dans la barre latérale.
         </p>
+
+        {/* Renommer le Command Center */}
+        <div className="t-card-flat rounded-lg px-4 py-3 mb-3 flex items-center gap-3">
+          <LayoutDashboard size={16} style={{ color: 'var(--text-secondary)' }} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm" style={{ color: 'var(--text-primary)' }}>Page d'accueil</p>
+            <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Personnalisez le nom de votre tableau de bord</p>
+          </div>
+          <input
+            type="text"
+            value={commandCenterName}
+            onChange={(e) => setCommandCenterName(e.target.value || 'Command Center')}
+            className="t-input rounded px-2.5 py-1 text-sm outline-none w-44 text-right"
+            placeholder="Command Center"
+          />
+        </div>
+
         <div className="t-card-flat rounded-lg divide-y" style={{ borderColor: 'var(--border-secondary)' }}>
           {[
             { key: 'clients', icon: Users, label: 'Clients', desc: 'Gestion de vos clients et contacts' },
@@ -264,6 +292,7 @@ export default function SettingsPage() {
             { key: 'objectifs', icon: Target, label: 'Objectifs', desc: 'Définition et suivi d\'objectifs' },
             { key: 'taches', icon: ListTodo, label: 'Tâches', desc: 'Liste de tâches et to-dos' },
             { key: 'calendrier', icon: CalendarDays, label: 'Calendrier', desc: 'Vue calendrier des échéances' },
+            { key: 'documents', icon: FileText, label: 'Documents', desc: 'Stockage et gestion de fichiers' },
           ].map(({ key, icon: Icon, label, desc }) => (
             <div
               key={key}
@@ -293,6 +322,101 @@ export default function SettingsPage() {
               </button>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ── Notifications ── */}
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2 mb-3" style={{ color: 'var(--text-tertiary)' }}>
+          <Bell size={14} /> Notifications
+        </h2>
+        <p className="text-[11px] mb-4" style={{ color: 'var(--text-tertiary)' }}>
+          Configurez les rappels pour les échéances, tâches et jalons clients.
+        </p>
+        <div className="t-card-flat rounded-lg p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Délai de rappel</p>
+              <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                Nombre de jours avant une échéance pour déclencher un rappel.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <input
+                type="number"
+                min={1}
+                max={30}
+                value={notificationSettings?.delaiJours ?? 3}
+                onChange={(e) => {
+                  const val = Math.max(1, Math.min(30, parseInt(e.target.value) || 3))
+                  setNotificationDelay(val)
+                }}
+                className="w-16 t-input rounded px-2 py-1 text-sm text-center outline-none font-mono"
+              />
+              <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>jours</span>
+            </div>
+          </div>
+
+          <div
+            className="pt-3 flex items-center justify-between"
+            style={{ borderTop: '1px solid var(--border-secondary)' }}
+          >
+            <div>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Notifications masquées</p>
+              <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                Réafficher toutes les notifications que vous avez masquées.
+              </p>
+            </div>
+            <button
+              onClick={() => clearDismissed()}
+              className="px-3 py-1.5 text-xs rounded-lg hover:opacity-80 transition-colors"
+              style={{ color: 'var(--text-secondary)', background: 'var(--bg-nested)' }}
+            >
+              Tout réafficher
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Documents ── */}
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2 mb-3" style={{ color: 'var(--text-tertiary)' }}>
+          <FolderOpen size={14} /> Documents
+        </h2>
+        <p className="text-[11px] mb-4" style={{ color: 'var(--text-tertiary)' }}>
+          Personnalisez le comportement du module Documents.
+        </p>
+        <div className="t-card-flat rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Ouverture des dossiers</p>
+              <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                Choisissez entre simple clic ou double-clic pour ouvrir un dossier.
+              </p>
+            </div>
+            <div
+              className="flex items-center rounded-lg overflow-hidden flex-shrink-0"
+              style={{ border: '1px solid var(--border-primary)' }}
+            >
+              {[
+                { key: 'single', label: 'Simple clic' },
+                { key: 'double', label: 'Double-clic' },
+              ].map((opt, i) => (
+                <button
+                  key={opt.key}
+                  onClick={() => setFolderClickMode(opt.key)}
+                  className="px-3 py-1.5 text-[11px] font-medium transition-colors"
+                  style={{
+                    background: folderClickMode === opt.key ? 'var(--text-primary)' : 'var(--bg-nested)',
+                    color: folderClickMode === opt.key ? 'var(--bg-card)' : 'var(--text-tertiary)',
+                    borderLeft: i > 0 ? '1px solid var(--border-primary)' : 'none',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 

@@ -108,6 +108,34 @@ const SCHEMA = `
     key TEXT PRIMARY KEY,
     value TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS doc_folders (
+    id TEXT PRIMARY KEY,
+    nom TEXT NOT NULL,
+    parent_id TEXT DEFAULT NULL,
+    couleur TEXT DEFAULT '#6B7280',
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (parent_id) REFERENCES doc_folders(id) ON DELETE SET NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS documents (
+    id TEXT PRIMARY KEY,
+    nom TEXT NOT NULL,
+    folder_id TEXT DEFAULT NULL,
+    mime_type TEXT DEFAULT '',
+    taille INTEGER DEFAULT 0,
+    file_path TEXT DEFAULT '',
+    file_data TEXT DEFAULT NULL,
+    epingle INTEGER DEFAULT 0,
+    tags TEXT DEFAULT '[]',
+    projet_id TEXT DEFAULT NULL,
+    client_id TEXT DEFAULT NULL,
+    notes TEXT DEFAULT '',
+    deleted_at TEXT DEFAULT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (folder_id) REFERENCES doc_folders(id) ON DELETE SET NULL
+  );
 `
 
 // Migration: add deleted_at column to existing tables that don't have it
@@ -120,6 +148,11 @@ const MIGRATIONS = [
   "ALTER TABLE transactions_table ADD COLUMN recurrence TEXT DEFAULT NULL",
   "ALTER TABLE transactions_table ADD COLUMN recurrence_active INTEGER DEFAULT 1",
   "ALTER TABLE transactions_table ADD COLUMN recurrence_jour INTEGER DEFAULT NULL",
+  "ALTER TABLE documents ADD COLUMN file_data TEXT DEFAULT NULL",
+  "ALTER TABLE documents ADD COLUMN epingle INTEGER DEFAULT 0",
+  "ALTER TABLE documents ADD COLUMN tags TEXT DEFAULT '[]'",
+  "ALTER TABLE documents ADD COLUMN projet_id TEXT DEFAULT NULL",
+  "ALTER TABLE documents ADD COLUMN client_id TEXT DEFAULT NULL",
 ]
 
 function runMigrations() {
@@ -644,11 +677,13 @@ export const trashDB = {
     const goals = queryAll("SELECT *, 'goal' as _type FROM goals WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC")
       .map((g) => ({ ...g, _type: 'goal' }))
 
-    return [...clients, ...projects, ...tasks, ...transactions, ...goals]
+    const documents = queryAll("SELECT *, 'document' as _type FROM documents WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC")
+
+    return [...clients, ...projects, ...tasks, ...transactions, ...goals, ...documents]
       .sort((a, b) => (b.deleted_at || '').localeCompare(a.deleted_at || ''))
   },
   getCount() {
-    const tables = ['clients', 'projects', 'tasks', 'transactions_table', 'goals']
+    const tables = ['clients', 'projects', 'tasks', 'transactions_table', 'goals', 'documents']
     let count = 0
     tables.forEach((t) => {
       const row = queryOne(`SELECT COUNT(*) as c FROM ${t} WHERE deleted_at IS NOT NULL`)
@@ -657,19 +692,127 @@ export const trashDB = {
     return count
   },
   restoreItem(type, id) {
-    const tableMap = { client: 'clients', project: 'projects', task: 'tasks', transaction: 'transactions_table', goal: 'goals' }
+    const tableMap = { client: 'clients', project: 'projects', task: 'tasks', transaction: 'transactions_table', goal: 'goals', document: 'documents' }
     const table = tableMap[type]
     if (table) run(`UPDATE ${table} SET deleted_at = NULL WHERE id = ?`, [id])
   },
   purgeItem(type, id) {
-    const tableMap = { client: 'clients', project: 'projects', task: 'tasks', transaction: 'transactions_table', goal: 'goals' }
+    const tableMap = { client: 'clients', project: 'projects', task: 'tasks', transaction: 'transactions_table', goal: 'goals', document: 'documents' }
     const table = tableMap[type]
     if (table) run(`DELETE FROM ${table} WHERE id = ?`, [id])
   },
   emptyTrash() {
-    ;['clients', 'projects', 'tasks', 'transactions_table', 'goals'].forEach((t) => {
+    ;['clients', 'projects', 'tasks', 'transactions_table', 'goals', 'documents'].forEach((t) => {
       run(`DELETE FROM ${t} WHERE deleted_at IS NOT NULL`)
     })
+  },
+}
+
+// ── Doc Folders ──
+
+export const docFoldersDB = {
+  getAll() {
+    return queryAll('SELECT * FROM doc_folders ORDER BY nom')
+  },
+  add(folder) {
+    const id = folder.id || generateId()
+    run(
+      'INSERT INTO doc_folders (id, nom, parent_id, couleur) VALUES (?, ?, ?, ?)',
+      [id, folder.nom, folder.parent_id || null, folder.couleur || '#6B7280']
+    )
+    return id
+  },
+  update(id, data) {
+    const fields = []
+    const values = []
+    if (data.nom !== undefined) { fields.push('nom = ?'); values.push(data.nom) }
+    if (data.parent_id !== undefined) { fields.push('parent_id = ?'); values.push(data.parent_id) }
+    if (data.couleur !== undefined) { fields.push('couleur = ?'); values.push(data.couleur) }
+    if (fields.length === 0) return
+    values.push(id)
+    run(`UPDATE doc_folders SET ${fields.join(', ')} WHERE id = ?`, values)
+  },
+  remove(id) {
+    // Move children to parent, then delete
+    const folder = queryOne('SELECT parent_id FROM doc_folders WHERE id = ?', [id])
+    run('UPDATE doc_folders SET parent_id = ? WHERE parent_id = ?', [folder?.parent_id || null, id])
+    run('UPDATE documents SET folder_id = ? WHERE folder_id = ?', [folder?.parent_id || null, id])
+    run('DELETE FROM doc_folders WHERE id = ?', [id])
+  },
+}
+
+// ── Documents ──
+
+function mapDoc(doc) {
+  return {
+    ...doc,
+    epingle: doc.epingle === 1 || doc.epingle === true,
+    tags: (() => { try { return JSON.parse(doc.tags || '[]') } catch { return [] } })(),
+  }
+}
+
+export const documentsDB = {
+  getAll() {
+    // Don't load file_data in list queries (perf)
+    const cols = 'id, nom, folder_id, mime_type, taille, file_path, epingle, tags, projet_id, client_id, notes, deleted_at, created_at, updated_at'
+    return queryAll(`SELECT ${cols} FROM documents WHERE deleted_at IS NULL ORDER BY epingle DESC, updated_at DESC`).map(mapDoc)
+  },
+  getByFolder(folderId) {
+    const cols = 'id, nom, folder_id, mime_type, taille, file_path, epingle, tags, projet_id, client_id, notes, deleted_at, created_at, updated_at'
+    if (folderId === null) {
+      return queryAll(`SELECT ${cols} FROM documents WHERE folder_id IS NULL AND deleted_at IS NULL ORDER BY epingle DESC, updated_at DESC`).map(mapDoc)
+    }
+    return queryAll(`SELECT ${cols} FROM documents WHERE folder_id = ? AND deleted_at IS NULL ORDER BY epingle DESC, updated_at DESC`, [folderId]).map(mapDoc)
+  },
+  search(query) {
+    const cols = 'id, nom, folder_id, mime_type, taille, file_path, epingle, tags, projet_id, client_id, notes, deleted_at, created_at, updated_at'
+    return queryAll(`SELECT ${cols} FROM documents WHERE deleted_at IS NULL AND (nom LIKE ? OR notes LIKE ? OR tags LIKE ?) ORDER BY epingle DESC, updated_at DESC`, [`%${query}%`, `%${query}%`, `%${query}%`]).map(mapDoc)
+  },
+  getRecent(limit = 5) {
+    const cols = 'id, nom, folder_id, mime_type, taille, file_path, epingle, tags, projet_id, client_id, notes, deleted_at, created_at, updated_at'
+    return queryAll(`SELECT ${cols} FROM documents WHERE deleted_at IS NULL ORDER BY updated_at DESC LIMIT ?`, [limit]).map(mapDoc)
+  },
+  getByProject(projectId) {
+    const cols = 'id, nom, folder_id, mime_type, taille, file_path, epingle, tags, projet_id, client_id, notes, deleted_at, created_at, updated_at'
+    return queryAll(`SELECT ${cols} FROM documents WHERE projet_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC`, [projectId]).map(mapDoc)
+  },
+  getByClient(clientId) {
+    const cols = 'id, nom, folder_id, mime_type, taille, file_path, epingle, tags, projet_id, client_id, notes, deleted_at, created_at, updated_at'
+    return queryAll(`SELECT ${cols} FROM documents WHERE client_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC`, [clientId]).map(mapDoc)
+  },
+  getById(id) {
+    const doc = queryOne('SELECT * FROM documents WHERE id = ?', [id])
+    return doc ? mapDoc(doc) : null
+  },
+  add(doc) {
+    const id = doc.id || generateId()
+    run(
+      `INSERT INTO documents (id, nom, folder_id, mime_type, taille, file_path, file_data, epingle, tags, projet_id, client_id, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, doc.nom, doc.folder_id || null, doc.mime_type || '', doc.taille || 0, doc.file_path || '', doc.file_data || null, doc.epingle ? 1 : 0, JSON.stringify(doc.tags || []), doc.projet_id || null, doc.client_id || null, doc.notes || '']
+    )
+    return id
+  },
+  update(id, data) {
+    const fields = []
+    const values = []
+    ;['nom', 'folder_id', 'mime_type', 'taille', 'file_path', 'file_data', 'epingle', 'projet_id', 'client_id', 'notes'].forEach((key) => {
+      if (data[key] !== undefined) { fields.push(`${key} = ?`); values.push(key === 'epingle' ? (data[key] ? 1 : 0) : data[key]) }
+    })
+    if (data.tags !== undefined) { fields.push('tags = ?'); values.push(JSON.stringify(data.tags)) }
+    if (fields.length === 0) return
+    fields.push("updated_at = datetime('now')")
+    values.push(id)
+    run(`UPDATE documents SET ${fields.join(', ')} WHERE id = ?`, values)
+  },
+  softDelete(id) {
+    run("UPDATE documents SET deleted_at = datetime('now') WHERE id = ?", [id])
+  },
+  restore(id) {
+    run("UPDATE documents SET deleted_at = NULL WHERE id = ?", [id])
+  },
+  purge(id) {
+    run('DELETE FROM documents WHERE id = ?', [id])
   },
 }
 
@@ -711,6 +854,8 @@ export function resetDB() {
   db.run('DELETE FROM goals')
   db.run('DELETE FROM projects')
   db.run('DELETE FROM clients')
+  db.run('DELETE FROM documents')
+  db.run('DELETE FROM doc_folders')
   db.run('DELETE FROM settings')
   persist()
 }
