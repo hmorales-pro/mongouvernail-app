@@ -50,10 +50,7 @@ const useStore = create(
       dbReady: false,
       onboardingDone: false,
 
-      // ── Personalisation ──
-      commandCenterName: 'Command Center',
-
-      // ── User profile (persisted via Zustand) ──
+      // ── User profile (persisted via Zustand — global) ──
       userProfile: {
         prenom: '',
         activite: '',
@@ -65,7 +62,7 @@ const useStore = create(
       activeWorkspaceName: '',
       activeWorkspaceColor: '#3B82F6',
 
-      // ── Data (loaded from SQLite) ──
+      // ── Data (loaded from SQLite — per workspace) ──
       clients: [],
       projects: [],
       tasks: [],
@@ -75,16 +72,14 @@ const useStore = create(
       documents: [],
       docFolders: [],
       customLists: {},
-      // Notifications / rappels
+
+      // ── Per-workspace preferences (stored in settingsDB) ──
+      commandCenterName: 'Command Center',
       notificationSettings: {
-        delaiJours: 3,       // rappel X jours avant échéance
-        dismissedIds: [],    // notifs manuellement masquées
+        delaiJours: 3,
+        dismissedIds: [],
       },
-
-      // Préférences Documents
-      folderClickMode: 'single', // 'single' | 'double'
-
-      // Modules visibles dans la sidebar (tous activés par défaut)
+      folderClickMode: 'single',
       enabledModules: {
         clients: true,
         projets: true,
@@ -95,34 +90,48 @@ const useStore = create(
         documents: true,
       },
 
-      // ── Personalisation ──
-      setCommandCenterName: (name) => set({ commandCenterName: name }),
+      // ── Personalisation (per workspace → settingsDB) ──
+      setCommandCenterName: (name) => {
+        settingsDB.set('commandCenterName', name)
+        set({ commandCenterName: name })
+      },
 
-      // ── Theme ──
+      // ── Theme (global — Zustand only) ──
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set((s) => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
 
-      // ── Document prefs ──
-      setFolderClickMode: (mode) => set({ folderClickMode: mode }),
+      // ── Document prefs (per workspace) ──
+      setFolderClickMode: (mode) => {
+        settingsDB.set('folderClickMode', mode)
+        set({ folderClickMode: mode })
+      },
 
-      // ── Modules sidebar ──
-      toggleModule: (key) => set((s) => ({
-        enabledModules: { ...s.enabledModules, [key]: !s.enabledModules[key] },
-      })),
+      // ── Modules sidebar (per workspace) ──
+      toggleModule: (key) => {
+        const updated = { ...get().enabledModules, [key]: !get().enabledModules[key] }
+        settingsDB.set('enabledModules', updated)
+        set({ enabledModules: updated })
+      },
 
-      // ── Notifications ──
-      setNotificationDelay: (days) => set((s) => ({
-        notificationSettings: { ...s.notificationSettings, delaiJours: days },
-      })),
-      dismissNotification: (id) => set((s) => ({
-        notificationSettings: {
-          ...s.notificationSettings,
-          dismissedIds: [...(s.notificationSettings.dismissedIds || []), id],
-        },
-      })),
-      clearDismissed: () => set((s) => ({
-        notificationSettings: { ...s.notificationSettings, dismissedIds: [] },
-      })),
+      // ── Notifications (per workspace) ──
+      setNotificationDelay: (days) => {
+        const updated = { ...get().notificationSettings, delaiJours: days }
+        settingsDB.set('notificationSettings', updated)
+        set({ notificationSettings: updated })
+      },
+      dismissNotification: (id) => {
+        const updated = {
+          ...get().notificationSettings,
+          dismissedIds: [...(get().notificationSettings.dismissedIds || []), id],
+        }
+        settingsDB.set('notificationSettings', updated)
+        set({ notificationSettings: updated })
+      },
+      clearDismissed: () => {
+        const updated = { ...get().notificationSettings, dismissedIds: [] }
+        settingsDB.set('notificationSettings', updated)
+        set({ notificationSettings: updated })
+      },
 
       // ── User profile ──
       setUserProfile: (profile) => set((s) => ({ userProfile: { ...s.userProfile, ...profile } })),
@@ -155,6 +164,7 @@ const useStore = create(
         const focus = settingsDB.get('focus', '')
 
         get()._refreshAll()
+        get()._loadWorkspacePrefs()
         get()._refreshWorkspaces()
         set({ dbReady: true, focus })
       },
@@ -189,6 +199,7 @@ const useStore = create(
         }
 
         get()._refreshAll()
+        get()._loadWorkspacePrefs()
         get()._refreshWorkspaces()
         set({ onboardingDone: true })
       },
@@ -234,6 +245,7 @@ const useStore = create(
         const focus = settingsDB.get('focus', '')
 
         get()._refreshAll()
+        get()._loadWorkspacePrefs()
         get()._refreshWorkspaces()
         set({ dbReady: true, focus })
       },
@@ -275,6 +287,7 @@ const useStore = create(
         const wsId = await restoreSnapshot(snapshotId)
         await switchDB(wsId)
         get()._refreshAll()
+        get()._loadWorkspacePrefs()
       },
 
       deleteSnapshot: async (id) => {
@@ -331,6 +344,22 @@ const useStore = create(
               statut: 'Actif',
             })
           }
+        })
+      },
+
+      // ── Internal: load per-workspace preferences from SQLite ──
+      _loadWorkspacePrefs: () => {
+        const defaults = {
+          commandCenterName: 'Command Center',
+          folderClickMode: 'single',
+          enabledModules: { clients: true, projets: true, finances: true, objectifs: true, taches: true, calendrier: true, documents: true },
+          notificationSettings: { delaiJours: 3, dismissedIds: [] },
+        }
+        set({
+          commandCenterName: settingsDB.get('commandCenterName', defaults.commandCenterName),
+          folderClickMode: settingsDB.get('folderClickMode', defaults.folderClickMode),
+          enabledModules: settingsDB.get('enabledModules', defaults.enabledModules),
+          notificationSettings: settingsDB.get('notificationSettings', defaults.notificationSettings),
         })
       },
 
@@ -546,6 +575,7 @@ const useStore = create(
         resetDatabase()
         get()._seedDatabase()
         get()._refreshAll()
+        get()._loadWorkspacePrefs()
         set({ focus: '' })
         settingsDB.set('focus', '')
       },
@@ -557,9 +587,6 @@ const useStore = create(
         commandPaletteOpen: false,
         onboardingDone: state.onboardingDone,
         userProfile: state.userProfile,
-        commandCenterName: state.commandCenterName,
-        enabledModules: state.enabledModules,
-        notificationSettings: state.notificationSettings,
       }),
     }
   )
