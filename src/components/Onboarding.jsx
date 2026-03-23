@@ -78,7 +78,7 @@ export default function Onboarding() {
           <div className="text-center">
             <div className="mb-4 flex justify-center"><Logo size={56} /></div>
             <h1 className="text-2xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-              Bienvenue sur MonGouvernail
+              Bienvenue sur Mon Gouvernail
             </h1>
             <p className="text-sm mb-8" style={{ color: 'var(--text-tertiary)' }}>
               Votre tableau de bord personnel pour piloter votre activité.

@@ -117,6 +117,9 @@ const MIGRATIONS = [
   "ALTER TABLE tasks ADD COLUMN deleted_at TEXT DEFAULT NULL",
   "ALTER TABLE transactions_table ADD COLUMN deleted_at TEXT DEFAULT NULL",
   "ALTER TABLE goals ADD COLUMN deleted_at TEXT DEFAULT NULL",
+  "ALTER TABLE transactions_table ADD COLUMN recurrence TEXT DEFAULT NULL",
+  "ALTER TABLE transactions_table ADD COLUMN recurrence_active INTEGER DEFAULT 1",
+  "ALTER TABLE transactions_table ADD COLUMN recurrence_jour INTEGER DEFAULT NULL",
 ]
 
 function runMigrations() {
@@ -492,28 +495,45 @@ export const tasksDB = {
 
 // ── Transactions ──
 
+function mapTransaction(tx) {
+  // For existing abonnements, derive day from date_echeance if recurrence_jour is null
+  let jour = tx.recurrence_jour
+  if (jour == null && tx.type === 'Abonnement') {
+    const d = new Date(tx.date_echeance || tx.date_emission)
+    if (!isNaN(d.getTime())) jour = d.getDate()
+  }
+  return {
+    ...tx,
+    recurrence: tx.recurrence || (tx.type === 'Abonnement' ? 'mensuel' : null),
+    recurrence_active: tx.recurrence_active !== 0 && tx.recurrence_active !== false,
+    recurrence_jour: jour || null,
+  }
+}
+
 export const transactionsDB = {
   getAll() {
-    return queryAll('SELECT * FROM transactions_table WHERE deleted_at IS NULL ORDER BY date_emission DESC')
+    return queryAll('SELECT * FROM transactions_table WHERE deleted_at IS NULL ORDER BY date_emission DESC').map(mapTransaction)
   },
   getByClient(clientId) {
-    return queryAll('SELECT * FROM transactions_table WHERE client_id = ? AND deleted_at IS NULL', [clientId])
+    return queryAll('SELECT * FROM transactions_table WHERE client_id = ? AND deleted_at IS NULL', [clientId]).map(mapTransaction)
   },
   getByProject(projectId) {
-    return queryAll('SELECT * FROM transactions_table WHERE projet_id = ? AND deleted_at IS NULL', [projectId])
+    return queryAll('SELECT * FROM transactions_table WHERE projet_id = ? AND deleted_at IS NULL', [projectId]).map(mapTransaction)
   },
   add(tx) {
     const id = tx.id || generateId()
     run(
       `INSERT INTO transactions_table (id, client_id, projet_id, type, montant_ht, montant_ttc, statut,
-        date_emission, date_echeance, date_encaissement, reference, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        date_emission, date_echeance, date_encaissement, reference, notes, recurrence, recurrence_active, recurrence_jour)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id, tx.client_id || null, tx.projet_id || null,
         tx.type || 'Facture', tx.montant_ht || 0, tx.montant_ttc || 0,
         tx.statut || 'À émettre', tx.date_emission || null,
         tx.date_echeance || null, tx.date_encaissement || null,
         tx.reference || '', tx.notes || '',
+        tx.recurrence || null, tx.recurrence_active !== false ? 1 : 0,
+        tx.recurrence_jour || null,
       ]
     )
     return id
@@ -522,12 +542,17 @@ export const transactionsDB = {
     const fields = []
     const values = []
     ;['client_id', 'projet_id', 'type', 'montant_ht', 'montant_ttc', 'statut',
-      'date_emission', 'date_echeance', 'date_encaissement', 'reference', 'notes'].forEach((key) => {
+      'date_emission', 'date_echeance', 'date_encaissement', 'reference', 'notes',
+      'recurrence', 'recurrence_jour'].forEach((key) => {
       if (data[key] !== undefined) {
         fields.push(`${key} = ?`)
         values.push(data[key])
       }
     })
+    if (data.recurrence_active !== undefined) {
+      fields.push('recurrence_active = ?')
+      values.push(data.recurrence_active ? 1 : 0)
+    }
     if (fields.length === 0) return
     fields.push("updated_at = datetime('now')")
     values.push(id)

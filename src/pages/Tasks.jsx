@@ -10,14 +10,14 @@ import {
 } from 'lucide-react'
 import useStore from '../store/useStore'
 import { formatDateShort, daysUntil } from '../utils/helpers'
-import {
-  TASK_PRIORITIES,
-  TASK_STATUTS,
-  TASK_PRIORITY_COLORS,
-} from '../utils/constants'
+import { TASK_PRIORITY_COLORS } from '../utils/constants'
+import { getList } from '../utils/customLists'
+import CustomSelect from '../components/CustomSelect'
+import { useConfirm } from '../components/ConfirmDialog'
 
 function TaskRow({ task, getProject, updateTask, setEditing, deleteTask }) {
   const [hovered, setHovered] = useState(false)
+  const confirm = useConfirm()
   const project = getProject(task.projet_id)
   const overdue =
     task.date_echeance && daysUntil(task.date_echeance) < 0 && task.statut !== 'Terminé'
@@ -116,8 +116,8 @@ function TaskRow({ task, getProject, updateTask, setEditing, deleteTask }) {
           Modifier
         </button>
         <button
-          onClick={() => {
-            if (confirm('Supprimer ?')) deleteTask(task.id)
+          onClick={async () => {
+            if (await confirm('Supprimer cette tâche ?')) deleteTask(task.id)
           }}
           className="text-[10px] transition-opacity"
           style={{
@@ -153,51 +153,60 @@ function TaskForm({ initial, projects, clients, onSave, onCancel }) {
 
   return (
     <div className="t-nested rounded-lg p-4 space-y-3" style={{ backgroundColor: 'var(--bg-nested)' }}>
-      <input
-        autoFocus
-        value={form.titre}
-        onChange={(e) => set('titre', e.target.value)}
-        placeholder="Titre de la tâche"
-        className="t-input w-full rounded px-3 py-2 text-sm outline-none focus:border-blue-500"
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && form.titre) onSave(form)
-        }}
-      />
-      <div className="grid grid-cols-4 gap-3">
-        <select
-          value={form.projet_id}
-          onChange={(e) => set('projet_id', e.target.value)}
-          className="t-input rounded px-3 py-2 text-sm outline-none"
-        >
-          <option value="">Sans projet</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>{p.nom}</option>
-          ))}
-        </select>
-        <select
-          value={form.priorite}
-          onChange={(e) => set('priorite', e.target.value)}
-          className="t-input rounded px-3 py-2 text-sm outline-none"
-        >
-          {TASK_PRIORITIES.map((p) => (
-            <option key={p}>{p}</option>
-          ))}
-        </select>
-        <select
-          value={form.statut}
-          onChange={(e) => set('statut', e.target.value)}
-          className="t-input rounded px-3 py-2 text-sm outline-none"
-        >
-          {TASK_STATUTS.map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
+      <div>
+        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Titre</label>
         <input
-          type="date"
-          value={form.date_echeance}
-          onChange={(e) => set('date_echeance', e.target.value)}
-          className="t-input rounded px-3 py-2 text-sm outline-none"
+          autoFocus
+          value={form.titre}
+          onChange={(e) => set('titre', e.target.value)}
+          placeholder="Titre de la tâche"
+          className="t-input w-full rounded px-3 py-2 text-sm outline-none focus:border-blue-500"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && form.titre) onSave(form)
+          }}
         />
+      </div>
+      <div className="grid grid-cols-4 gap-3">
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Projet</label>
+          <select
+            value={form.projet_id}
+            onChange={(e) => set('projet_id', e.target.value)}
+            className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+          >
+            <option value="">Sans projet</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>{p.nom}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Priorité</label>
+          <CustomSelect
+            listKey="task_priorities"
+            value={form.priorite}
+            onChange={(e) => set('priorite', e.target.value)}
+            className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Statut</label>
+          <CustomSelect
+            listKey="task_statuts"
+            value={form.statut}
+            onChange={(e) => set('statut', e.target.value)}
+            className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Échéance</label>
+          <input
+            type="date"
+            value={form.date_echeance}
+            onChange={(e) => set('date_echeance', e.target.value)}
+            className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+          />
+        </div>
       </div>
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-1.5 text-sm cursor-pointer" style={{ color: 'var(--text-tertiary)' }}>
@@ -208,19 +217,21 @@ function TaskForm({ initial, projects, clients, onSave, onCancel }) {
           />
           Lié aux revenus
         </label>
-        <input
-          value={tagInput}
-          onChange={(e) => setTagInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && tagInput.trim()) {
-              set('tags', [...(form.tags || []), tagInput.trim()])
-              setTagInput('')
-              e.preventDefault()
-            }
-          }}
-          placeholder="Tag + Entrée"
-          className="t-input flex-1 rounded px-3 py-1.5 text-sm outline-none"
-        />
+        <div className="flex-1">
+          <input
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && tagInput.trim()) {
+                set('tags', [...(form.tags || []), tagInput.trim()])
+                setTagInput('')
+                e.preventDefault()
+              }
+            }}
+            placeholder="Tag + Entrée"
+            className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+          />
+        </div>
         <div className="flex gap-1">
           {(form.tags || []).map((t, i) => (
             <span key={i} className="t-tag text-[10px] px-2 py-0.5 rounded flex items-center gap-1">
@@ -255,6 +266,9 @@ export default function Tasks() {
   const addTask = useStore((s) => s.addTask)
   const updateTask = useStore((s) => s.updateTask)
   const deleteTask = useStore((s) => s.deleteTask)
+  const customLists = useStore((s) => s.customLists)
+  const taskPriorities = getList('task_priorities', customLists)
+  const taskStatuts = getList('task_statuts', customLists)
 
   const [search, setSearch] = useState('')
   const [filterStatut, setFilterStatut] = useState('Tous')
@@ -282,7 +296,7 @@ export default function Tasks() {
 
   const grouped = {}
   if (groupBy === 'priorite') {
-    TASK_PRIORITIES.forEach((p) => {
+    taskPriorities.forEach((p) => {
       const items = filtered.filter((t) => t.priorite === p)
       if (items.length) grouped[p] = items
     })
@@ -298,7 +312,7 @@ export default function Tasks() {
       grouped[project?.nom || 'Sans projet'] = items
     })
   } else if (groupBy === 'statut') {
-    TASK_STATUTS.forEach((s) => {
+    taskStatuts.forEach((s) => {
       const items = filtered.filter((t) => t.statut === s)
       if (items.length) grouped[s] = items
     })
@@ -369,7 +383,7 @@ export default function Tasks() {
           className="t-input rounded-lg px-3 py-2 text-sm outline-none"
         >
           <option>Tous</option>
-          {TASK_STATUTS.map((s) => (
+          {taskStatuts.map((s) => (
             <option key={s}>{s}</option>
           ))}
         </select>
@@ -379,7 +393,7 @@ export default function Tasks() {
           className="t-input rounded-lg px-3 py-2 text-sm outline-none"
         >
           <option>Tous</option>
-          {TASK_PRIORITIES.map((p) => (
+          {taskPriorities.map((p) => (
             <option key={p}>{p}</option>
           ))}
         </select>

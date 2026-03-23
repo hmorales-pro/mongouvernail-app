@@ -18,21 +18,32 @@ import {
   daysSince,
   getRelationHealth,
 } from '../utils/helpers'
-import { CLIENT_TYPES, CLIENT_STATUTS } from '../utils/constants'
+import { getList } from '../utils/customLists'
+import CustomSelect from '../components/CustomSelect'
+import { useConfirm } from '../components/ConfirmDialog'
 
 function ClientForm({ initial, onSave, onCancel }) {
+  const defaults = {
+    nom: '',
+    type: 'Freelance',
+    statut: 'Prospect',
+    contact_principal: { nom: '', email: '', telephone: '' },
+    derniere_interaction: new Date().toISOString().split('T')[0],
+    prochain_jalon: { texte: '', date: '' },
+    notes: '',
+    solde_a_encaisser: 0,
+    tags: [],
+  }
   const [form, setForm] = useState(
-    initial || {
-      nom: '',
-      type: 'Freelance',
-      statut: 'Prospect',
-      contact_principal: { nom: '', email: '', telephone: '' },
-      derniere_interaction: new Date().toISOString().split('T')[0],
-      prochain_jalon: { texte: '', date: '' },
-      notes: '',
-      solde_a_encaisser: 0,
-      tags: [],
-    }
+    initial
+      ? {
+          ...defaults,
+          ...initial,
+          contact_principal: { ...defaults.contact_principal, ...initial.contact_principal },
+          prochain_jalon: { ...defaults.prochain_jalon, ...initial.prochain_jalon },
+          tags: initial.tags || [],
+        }
+      : defaults
   )
   const [tagInput, setTagInput] = useState('')
 
@@ -50,115 +61,140 @@ function ClientForm({ initial, onSave, onCancel }) {
 
   return (
     <div className="t-card-flat border rounded-lg p-4 space-y-3" style={{ borderColor: 'var(--border-primary)' }}>
-      <div className="grid grid-cols-2 gap-3">
+      <div>
+        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Nom du client</label>
         <input
           value={form.nom}
           onChange={(e) => set('nom', e.target.value)}
           placeholder="Nom du client"
-          className="col-span-2 t-input border rounded px-3 py-2 text-sm outline-none focus:border-blue-500"
+          className="w-full t-input border rounded px-3 py-2 text-sm outline-none focus:border-blue-500"
           style={{ borderColor: 'var(--border-secondary)' }}
-        />
-        <select
-          value={form.type}
-          onChange={(e) => set('type', e.target.value)}
-          className="t-input border rounded px-3 py-2 text-sm outline-none"
-          style={{ borderColor: 'var(--border-secondary)' }}
-        >
-          {CLIENT_TYPES.map((t) => (
-            <option key={t}>{t}</option>
-          ))}
-        </select>
-        <select
-          value={form.statut}
-          onChange={(e) => set('statut', e.target.value)}
-          className="t-input border rounded px-3 py-2 text-sm outline-none"
-          style={{ borderColor: 'var(--border-secondary)' }}
-        >
-          {CLIENT_STATUTS.map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        <input
-          value={form.contact_principal.nom}
-          onChange={(e) => setContact('nom', e.target.value)}
-          placeholder="Contact"
-          className="t-input border rounded px-3 py-2 text-sm outline-none"
-          style={{ borderColor: 'var(--border-secondary)' }}
-        />
-        <input
-          value={form.contact_principal.email}
-          onChange={(e) => setContact('email', e.target.value)}
-          placeholder="Email"
-          className="t-input border rounded px-3 py-2 text-sm outline-none"
-          style={{ borderColor: 'var(--border-secondary)' }}
-        />
-        <input
-          value={form.contact_principal.telephone}
-          onChange={(e) => setContact('telephone', e.target.value)}
-          placeholder="Téléphone"
-          className="t-input border rounded px-3 py-2 text-sm outline-none"
-          style={{ borderColor: 'var(--border-secondary)' }}
+          autoFocus
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <input
-          value={form.prochain_jalon.texte}
-          onChange={(e) => setJalon('texte', e.target.value)}
-          placeholder="Prochain jalon"
-          className="t-input border rounded px-3 py-2 text-sm outline-none"
-          style={{ borderColor: 'var(--border-secondary)' }}
-        />
-        <input
-          type="date"
-          value={form.prochain_jalon.date}
-          onChange={(e) => setJalon('date', e.target.value)}
-          className="t-input border rounded px-3 py-2 text-sm outline-none"
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Type</label>
+          <CustomSelect
+            listKey="client_types"
+            value={form.type}
+            onChange={(e) => set('type', e.target.value)}
+            className="w-full t-input border rounded px-3 py-2 text-sm outline-none"
+            style={{ borderColor: 'var(--border-secondary)' }}
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Statut</label>
+          <CustomSelect
+            listKey="client_statuts"
+            value={form.statut}
+            onChange={(e) => set('statut', e.target.value)}
+            className="w-full t-input border rounded px-3 py-2 text-sm outline-none"
+            style={{ borderColor: 'var(--border-secondary)' }}
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Contact</label>
+          <input
+            value={form.contact_principal.nom}
+            onChange={(e) => setContact('nom', e.target.value)}
+            placeholder="Nom du contact"
+            className="w-full t-input border rounded px-3 py-2 text-sm outline-none"
+            style={{ borderColor: 'var(--border-secondary)' }}
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Email</label>
+          <input
+            value={form.contact_principal.email}
+            onChange={(e) => setContact('email', e.target.value)}
+            placeholder="email@exemple.com"
+            className="w-full t-input border rounded px-3 py-2 text-sm outline-none"
+            style={{ borderColor: 'var(--border-secondary)' }}
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Téléphone</label>
+          <input
+            value={form.contact_principal.telephone}
+            onChange={(e) => setContact('telephone', e.target.value)}
+            placeholder="06 12 34 56 78"
+            className="w-full t-input border rounded px-3 py-2 text-sm outline-none"
+            style={{ borderColor: 'var(--border-secondary)' }}
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Prochain jalon</label>
+          <input
+            value={form.prochain_jalon.texte}
+            onChange={(e) => setJalon('texte', e.target.value)}
+            placeholder="Description du jalon"
+            className="w-full t-input border rounded px-3 py-2 text-sm outline-none"
+            style={{ borderColor: 'var(--border-secondary)' }}
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Date du jalon</label>
+          <input
+            type="date"
+            value={form.prochain_jalon.date}
+            onChange={(e) => setJalon('date', e.target.value)}
+            className="w-full t-input border rounded px-3 py-2 text-sm outline-none"
+            style={{ borderColor: 'var(--border-secondary)' }}
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Notes</label>
+        <textarea
+          value={form.notes}
+          onChange={(e) => set('notes', e.target.value)}
+          placeholder="Notes (markdown)"
+          rows={3}
+          className="w-full t-input border rounded px-3 py-2 text-sm outline-none resize-none"
           style={{ borderColor: 'var(--border-secondary)' }}
         />
       </div>
-      <textarea
-        value={form.notes}
-        onChange={(e) => set('notes', e.target.value)}
-        placeholder="Notes (markdown)"
-        rows={3}
-        className="w-full t-input border rounded px-3 py-2 text-sm outline-none resize-none"
-        style={{ borderColor: 'var(--border-secondary)' }}
-      />
-      <div className="flex items-center gap-2">
-        <input
-          value={tagInput}
-          onChange={(e) => setTagInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && tagInput.trim()) {
-              set('tags', [...(form.tags || []), tagInput.trim()])
-              setTagInput('')
-            }
-          }}
-          placeholder="Ajouter un tag (Entrée)"
-          className="flex-1 t-input border rounded px-3 py-1.5 text-sm outline-none"
-          style={{ borderColor: 'var(--border-secondary)' }}
-        />
-        <div className="flex gap-1 flex-wrap">
-          {(form.tags || []).map((tag, i) => (
-            <span
-              key={i}
-              className="t-tag text-[10px] px-2 py-0.5 rounded flex items-center gap-1"
-            >
-              #{tag}
-              <button
-                onClick={() =>
-                  set(
-                    'tags',
-                    form.tags.filter((_, j) => j !== i)
-                  )
-                }
+      <div>
+        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Tags</label>
+        <div className="flex items-center gap-2">
+          <input
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && tagInput.trim()) {
+                set('tags', [...(form.tags || []), tagInput.trim()])
+                setTagInput('')
+              }
+            }}
+            placeholder="Ajouter un tag (Entrée)"
+            className="flex-1 t-input border rounded px-3 py-2 text-sm outline-none"
+            style={{ borderColor: 'var(--border-secondary)' }}
+          />
+          <div className="flex gap-1 flex-wrap">
+            {(form.tags || []).map((tag, i) => (
+              <span
+                key={i}
+                className="t-tag text-[10px] px-2 py-0.5 rounded flex items-center gap-1"
               >
-                <X size={8} />
-              </button>
-            </span>
-          ))}
+                #{tag}
+                <button
+                  onClick={() =>
+                    set(
+                      'tags',
+                      form.tags.filter((_, j) => j !== i)
+                    )
+                  }
+                >
+                  <X size={8} />
+                </button>
+              </span>
+            ))}
+          </div>
         </div>
       </div>
       <div className="flex justify-end gap-2">
@@ -191,6 +227,10 @@ export default function Clients() {
   const markClientContacted = useStore((s) => s.markClientContacted)
   const transactions = useStore((s) => s.transactions)
   const projects = useStore((s) => s.projects)
+  const customLists = useStore((s) => s.customLists)
+  const clientTypes = getList('client_types', customLists)
+  const clientStatuts = getList('client_statuts', customLists)
+  const confirm = useConfirm()
 
   const [search, setSearch] = useState('')
   const [filterStatut, setFilterStatut] = useState('Tous')
@@ -242,7 +282,7 @@ export default function Clients() {
           style={{ borderColor: 'var(--border-secondary)' }}
         >
           <option>Tous</option>
-          {CLIENT_STATUTS.map((s) => (
+          {clientStatuts.map((s) => (
             <option key={s}>{s}</option>
           ))}
         </select>
@@ -253,7 +293,7 @@ export default function Clients() {
           style={{ borderColor: 'var(--border-secondary)' }}
         >
           <option>Tous</option>
-          {CLIENT_TYPES.map((t) => (
+          {clientTypes.map((t) => (
             <option key={t}>{t}</option>
           ))}
         </select>
@@ -375,9 +415,9 @@ export default function Clients() {
                           Modifier
                         </button>
                         <button
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation()
-                            if (confirm('Supprimer ce client ?')) deleteClient(client.id)
+                            if (await confirm('Supprimer ce client et toutes ses données associées ?')) deleteClient(client.id)
                           }}
                           className="text-xs bg-red-500/10 text-red-400 px-2.5 py-1 rounded hover:bg-red-500/20 transition-colors"
                         >

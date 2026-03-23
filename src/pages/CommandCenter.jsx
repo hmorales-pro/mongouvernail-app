@@ -146,7 +146,7 @@ export default function CommandCenter() {
   const totalToCollect = useMemo(
     () =>
       transactions
-        .filter((t) => t.statut !== 'Encaissée' && t.statut !== 'À émettre')
+        .filter((t) => t.statut !== 'Encaissée')
         .reduce((sum, t) => sum + (t.montant_ttc || 0), 0),
     [transactions]
   )

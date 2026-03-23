@@ -67,10 +67,25 @@ const useStore = create(
       transactions: [],
       goals: [],
       trashCount: 0,
+      customLists: {},
+      // Modules visibles dans la sidebar (tous activés par défaut)
+      enabledModules: {
+        clients: true,
+        projets: true,
+        finances: true,
+        objectifs: true,
+        taches: true,
+        calendrier: true,
+      },
 
       // ── Theme ──
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set((s) => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
+
+      // ── Modules sidebar ──
+      toggleModule: (key) => set((s) => ({
+        enabledModules: { ...s.enabledModules, [key]: !s.enabledModules[key] },
+      })),
 
       // ── User profile ──
       setUserProfile: (profile) => set((s) => ({ userProfile: { ...s.userProfile, ...profile } })),
@@ -291,7 +306,16 @@ const useStore = create(
           transactions: transactionsDB.getAll(),
           goals: goalsDB.getAll(),
           trashCount: trashDB.getCount(),
+          customLists: settingsDB.get('custom_lists', {}),
         })
+      },
+
+      // ── Custom lists ──
+      updateCustomList: (listKey, data) => {
+        const customLists = { ...get().customLists, [listKey]: data }
+        settingsDB.set('custom_lists', customLists)
+        persistDB()
+        set({ customLists })
       },
 
       _refreshClients: () => set({ clients: clientsDB.getAll() }),
@@ -450,6 +474,7 @@ const useStore = create(
         commandPaletteOpen: false,
         onboardingDone: state.onboardingDone,
         userProfile: state.userProfile,
+        enabledModules: state.enabledModules,
       }),
     }
   )

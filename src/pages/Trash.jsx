@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { Trash2, RotateCcw, AlertTriangle, X } from 'lucide-react'
 import useStore from '../store/useStore'
 import { formatDate } from '../utils/helpers'
+import { useConfirm } from '../components/ConfirmDialog'
 
 const TYPE_LABELS = {
   client: 'Client',
@@ -29,6 +30,7 @@ export default function Trash() {
   const purgeTrashItem = useStore((s) => s.purgeTrashItem)
   const emptyTrash = useStore((s) => s.emptyTrash)
   const trashCount = useStore((s) => s.trashCount)
+  const confirm = useConfirm()
 
   const [filterType, setFilterType] = useState('Tous')
 
@@ -51,8 +53,8 @@ export default function Trash() {
         </div>
         {items.length > 0 && (
           <button
-            onClick={() => {
-              if (confirm('Vider définitivement la corbeille ? Cette action est irréversible.')) {
+            onClick={async () => {
+              if (await confirm('Vider définitivement la corbeille ? Cette action est irréversible.')) {
                 emptyTrash()
               }
             }}
@@ -123,8 +125,8 @@ export default function Trash() {
                   <RotateCcw size={11} /> Restaurer
                 </button>
                 <button
-                  onClick={() => {
-                    if (confirm('Supprimer définitivement ?')) {
+                  onClick={async () => {
+                    if (await confirm('Supprimer définitivement cet élément ?')) {
                       purgeTrashItem(item._type, item.id)
                     }
                   }}

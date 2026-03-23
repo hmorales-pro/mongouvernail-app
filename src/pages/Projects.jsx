@@ -9,20 +9,18 @@ import {
   X,
 } from 'lucide-react'
 import useStore from '../store/useStore'
+import { useConfirm } from '../components/ConfirmDialog'
 import {
   formatDate,
   daysUntil,
   calculateGoalProgress,
 } from '../utils/helpers'
 import {
-  PROJECT_CATEGORIES,
-  PROJECT_STATUTS,
-  PROJECT_PRIORITIES,
   CATEGORY_COLORS,
   PRIORITY_COLORS,
-  GOAL_TYPES,
-  PERIOD_UNITS,
 } from '../utils/constants'
+import { getList } from '../utils/customLists'
+import CustomSelect from '../components/CustomSelect'
 
 function ProgressBar({ value, color = '#3B82F6' }) {
   return (
@@ -68,72 +66,84 @@ function ProjectForm({ initial, clients, onSave, onCancel }) {
 
   return (
     <div className="t-nested rounded-lg p-4 space-y-3" style={{ background: 'var(--bg-nested)', border: '1px solid var(--border-primary)' }}>
-      <input
-        value={form.nom}
-        onChange={(e) => set('nom', e.target.value)}
-        placeholder="Nom du projet"
-        className="t-input w-full rounded px-3 py-2 text-sm outline-none focus:border-blue-500"
-        style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-      />
-      <div className="grid grid-cols-4 gap-3">
-        <select
-          value={form.client_id}
-          onChange={(e) => set('client_id', e.target.value)}
-          className="t-input rounded px-3 py-2 text-sm outline-none"
+      <div>
+        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Nom du projet</label>
+        <input
+          value={form.nom}
+          onChange={(e) => set('nom', e.target.value)}
+          placeholder="Nom du projet"
+          className="t-input w-full rounded px-3 py-2 text-sm outline-none focus:border-blue-500"
           style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-        >
-          <option value="">Sans client</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>{c.nom.split('—')[0]?.trim()}</option>
-          ))}
-        </select>
-        <select
-          value={form.categorie}
-          onChange={(e) => set('categorie', e.target.value)}
-          className="t-input rounded px-3 py-2 text-sm outline-none"
-          style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-        >
-          {PROJECT_CATEGORIES.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
-        <select
-          value={form.statut}
-          onChange={(e) => set('statut', e.target.value)}
-          className="t-input rounded px-3 py-2 text-sm outline-none"
-          style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-        >
-          {PROJECT_STATUTS.map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
-        <select
-          value={form.priorite}
-          onChange={(e) => set('priorite', e.target.value)}
-          className="t-input rounded px-3 py-2 text-sm outline-none"
-          style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-        >
-          {PROJECT_PRIORITIES.map((p) => (
-            <option key={p}>{p}</option>
-          ))}
-        </select>
+          autoFocus
+        />
       </div>
-      <input
-        type="date"
-        value={form.deadline}
-        onChange={(e) => set('deadline', e.target.value)}
-        className="t-input rounded px-3 py-2 text-sm outline-none"
-        style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-        placeholder="Deadline"
-      />
-      <textarea
-        value={form.notes}
-        onChange={(e) => set('notes', e.target.value)}
-        placeholder="Notes"
-        rows={2}
-        className="t-input w-full rounded px-3 py-2 text-sm outline-none resize-none"
-        style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-      />
+      <div className="grid grid-cols-4 gap-3">
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Client</label>
+          <select
+            value={form.client_id}
+            onChange={(e) => set('client_id', e.target.value)}
+            className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+            style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+          >
+            <option value="">Sans client</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>{c.nom.split('—')[0]?.trim()}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Catégorie</label>
+          <CustomSelect
+            listKey="project_categories"
+            value={form.categorie}
+            onChange={(e) => set('categorie', e.target.value)}
+            className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+            style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Statut</label>
+          <CustomSelect
+            listKey="project_statuts"
+            value={form.statut}
+            onChange={(e) => set('statut', e.target.value)}
+            className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+            style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Priorité</label>
+          <CustomSelect
+            listKey="project_priorities"
+            value={form.priorite}
+            onChange={(e) => set('priorite', e.target.value)}
+            className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+            style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Deadline</label>
+        <input
+          type="date"
+          value={form.deadline}
+          onChange={(e) => set('deadline', e.target.value)}
+          className="t-input rounded px-3 py-2 text-sm outline-none"
+          style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+        />
+      </div>
+      <div>
+        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Notes</label>
+        <textarea
+          value={form.notes}
+          onChange={(e) => set('notes', e.target.value)}
+          placeholder="Notes"
+          rows={2}
+          className="t-input w-full rounded px-3 py-2 text-sm outline-none resize-none"
+          style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+        />
+      </div>
 
       <div>
         <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text-tertiary)' }}>
@@ -148,57 +158,67 @@ function ProjectForm({ initial, clients, onSave, onCancel }) {
         </label>
         {hasGoal && (
           <div className="mt-2 grid grid-cols-3 gap-2">
-            <select
-              value={goal.type}
-              onChange={(e) => setG('type', e.target.value)}
-              className="t-input rounded px-3 py-1.5 text-sm outline-none"
-              style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-            >
-              {GOAL_TYPES.map((t) => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
-            <input
-              type="number"
-              value={goal.valeur_cible}
-              onChange={(e) => setG('valeur_cible', +e.target.value)}
-              placeholder="Cible"
-              className="t-input rounded px-3 py-1.5 text-sm outline-none"
-              style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-            />
-            <input
-              value={goal.unite}
-              onChange={(e) => setG('unite', e.target.value)}
-              placeholder="Unité"
-              className="t-input rounded px-3 py-1.5 text-sm outline-none"
-              style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-            />
-            <input
-              type="number"
-              value={goal.valeur_actuelle}
-              onChange={(e) => setG('valeur_actuelle', +e.target.value)}
-              placeholder="Actuel"
-              className="t-input rounded px-3 py-1.5 text-sm outline-none"
-              style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-            />
-            <input
-              type="number"
-              value={goal.periode_valeur}
-              onChange={(e) => setG('periode_valeur', +e.target.value)}
-              placeholder="Période"
-              className="t-input rounded px-3 py-1.5 text-sm outline-none"
-              style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-            />
-            <select
-              value={goal.periode_unite}
-              onChange={(e) => setG('periode_unite', e.target.value)}
-              className="t-input rounded px-3 py-1.5 text-sm outline-none"
-              style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-            >
-              {PERIOD_UNITS.map((u) => (
-                <option key={u}>{u}</option>
-              ))}
-            </select>
+            <div>
+              <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Type</label>
+              <CustomSelect
+                listKey="goal_types"
+                value={goal.type}
+                onChange={(e) => setG('type', e.target.value)}
+                className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+                style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Cible</label>
+              <input
+                type="number"
+                value={goal.valeur_cible}
+                onChange={(e) => setG('valeur_cible', +e.target.value)}
+                placeholder="Cible"
+                className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+                style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Unité</label>
+              <input
+                value={goal.unite}
+                onChange={(e) => setG('unite', e.target.value)}
+                placeholder="ex: tâches"
+                className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+                style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Actuel</label>
+              <input
+                type="number"
+                value={goal.valeur_actuelle}
+                onChange={(e) => setG('valeur_actuelle', +e.target.value)}
+                className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+                style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Période</label>
+              <input
+                type="number"
+                value={goal.periode_valeur}
+                onChange={(e) => setG('periode_valeur', +e.target.value)}
+                className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+                style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Unité période</label>
+              <CustomSelect
+                listKey="period_units"
+                value={goal.periode_unite}
+                onChange={(e) => setG('periode_unite', e.target.value)}
+                className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+                style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+              />
+            </div>
           </div>
         )}
       </div>
@@ -228,9 +248,17 @@ export default function Projects() {
   const projects = useStore((s) => s.projects)
   const clients = useStore((s) => s.clients)
   const tasks = useStore((s) => s.tasks)
+  const customLists = useStore((s) => s.customLists)
   const addProject = useStore((s) => s.addProject)
   const updateProject = useStore((s) => s.updateProject)
   const deleteProject = useStore((s) => s.deleteProject)
+  const confirm = useConfirm()
+
+  const projectCategories = getList('project_categories', customLists)
+  const projectStatuts = getList('project_statuts', customLists)
+  const projectPriorities = getList('project_priorities', customLists)
+  const goalTypes = getList('goal_types', customLists)
+  const periodUnits = getList('period_units', customLists)
 
   const [search, setSearch] = useState('')
   const [filterStatut, setFilterStatut] = useState('Tous')
@@ -247,12 +275,10 @@ export default function Projects() {
     return true
   })
 
-  const grouped = {
-    P0: filtered.filter((p) => p.priorite === 'P0'),
-    P1: filtered.filter((p) => p.priorite === 'P1'),
-    P2: filtered.filter((p) => p.priorite === 'P2'),
-    P3: filtered.filter((p) => p.priorite === 'P3'),
-  }
+  const grouped = {}
+  projectPriorities.forEach((p) => {
+    grouped[p] = filtered.filter((proj) => proj.priorite === p)
+  })
 
   const getClient = (id) => clients.find((c) => c.id === id)
   const getNextTask = (projectId) =>
@@ -345,9 +371,9 @@ export default function Projects() {
                 Modifier
               </button>
               <button
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation()
-                  if (confirm('Supprimer ?')) deleteProject(project.id)
+                  if (await confirm('Supprimer ce projet et toutes ses données associées ?')) deleteProject(project.id)
                 }}
                 className="text-[10px] px-2 py-0.5 rounded"
                 style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}
@@ -405,7 +431,7 @@ export default function Projects() {
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border-primary)', color: 'var(--text-secondary)' }}
         >
           <option>Tous</option>
-          {PROJECT_STATUTS.map((s) => (
+          {projectStatuts.map((s) => (
             <option key={s}>{s}</option>
           ))}
         </select>
@@ -416,7 +442,7 @@ export default function Projects() {
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border-primary)', color: 'var(--text-secondary)' }}
         >
           <option>Tous</option>
-          {PROJECT_CATEGORIES.map((c) => (
+          {projectCategories.map((c) => (
             <option key={c}>{c}</option>
           ))}
         </select>

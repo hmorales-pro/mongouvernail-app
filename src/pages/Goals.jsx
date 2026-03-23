@@ -3,9 +3,9 @@ import { Target, Clock, Plus, X, Pencil, Trash2, Link2 } from 'lucide-react'
 import useStore from '../store/useStore'
 import { calculateGoalProgress, daysUntil } from '../utils/helpers'
 import { CATEGORY_COLORS, GOAL_TYPE_LABELS } from '../utils/constants'
-
-const GOAL_TYPES = ['VISITS', 'CLIENTS', 'REVENUE', 'TASKS', 'CONTENT', 'SUBSCRIBERS', 'CUSTOM']
-const PERIOD_UNITS = ['jours', 'semaines', 'mois']
+import { getList } from '../utils/customLists'
+import CustomSelect from '../components/CustomSelect'
+import { useConfirm } from '../components/ConfirmDialog'
 
 function ProgressRing({ value, size = 64, strokeWidth = 5, color = '#3B82F6' }) {
   const radius = (size - strokeWidth) / 2
@@ -68,43 +68,48 @@ function GoalForm({ initial, projects, onSave, onCancel }) {
         </button>
       </div>
 
-      <input
-        autoFocus
-        value={form.titre}
-        onChange={(e) => set('titre', e.target.value)}
-        placeholder="Titre de l'objectif (ex: Atteindre 50 clients B2B)"
-        className="t-input w-full rounded-lg px-3 py-2.5 text-sm"
-      />
+      <div>
+        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Titre</label>
+        <input
+          autoFocus
+          value={form.titre}
+          onChange={(e) => set('titre', e.target.value)}
+          placeholder="ex: Atteindre 50 clients B2B"
+          className="t-input w-full rounded-lg px-3 py-2.5 text-sm"
+        />
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <select
-          value={form.projet_id || ''}
-          onChange={(e) => set('projet_id', e.target.value || null)}
-          className="t-input rounded-lg px-3 py-2 text-sm"
-        >
-          <option value="">Objectif indépendant</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nom}
-            </option>
-          ))}
-        </select>
-        <select
-          value={form.type}
-          onChange={(e) => set('type', e.target.value)}
-          className="t-input rounded-lg px-3 py-2 text-sm"
-        >
-          {GOAL_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {GOAL_TYPE_LABELS[t] || t}
-            </option>
-          ))}
-        </select>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Projet lié</label>
+          <select
+            value={form.projet_id || ''}
+            onChange={(e) => set('projet_id', e.target.value || null)}
+            className="w-full t-input rounded-lg px-3 py-2 text-sm"
+          >
+            <option value="">Objectif indépendant</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nom}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Type</label>
+          <CustomSelect
+            listKey="goal_types"
+            value={form.type}
+            onChange={(e) => set('type', e.target.value)}
+            className="w-full t-input rounded-lg px-3 py-2 text-sm"
+            labelMap={GOAL_TYPE_LABELS}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="text-[10px] uppercase tracking-wider font-medium block mb-1" style={{ color: 'var(--text-tertiary)' }}>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>
             Valeur actuelle
           </label>
           <input
@@ -115,7 +120,7 @@ function GoalForm({ initial, projects, onSave, onCancel }) {
           />
         </div>
         <div>
-          <label className="text-[10px] uppercase tracking-wider font-medium block mb-1" style={{ color: 'var(--text-tertiary)' }}>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>
             Cible
           </label>
           <input
@@ -126,7 +131,7 @@ function GoalForm({ initial, projects, onSave, onCancel }) {
           />
         </div>
         <div>
-          <label className="text-[10px] uppercase tracking-wider font-medium block mb-1" style={{ color: 'var(--text-tertiary)' }}>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>
             Unité
           </label>
           <input
@@ -140,7 +145,7 @@ function GoalForm({ initial, projects, onSave, onCancel }) {
 
       <div className="grid grid-cols-4 gap-3">
         <div>
-          <label className="text-[10px] uppercase tracking-wider font-medium block mb-1" style={{ color: 'var(--text-tertiary)' }}>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>
             Période
           </label>
           <input
@@ -151,21 +156,18 @@ function GoalForm({ initial, projects, onSave, onCancel }) {
           />
         </div>
         <div>
-          <label className="text-[10px] uppercase tracking-wider font-medium block mb-1" style={{ color: 'var(--text-tertiary)' }}>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>
             Unité période
           </label>
-          <select
+          <CustomSelect
+            listKey="period_units"
             value={form.periode_unite}
             onChange={(e) => set('periode_unite', e.target.value)}
-            className="t-input w-full rounded-lg px-3 py-2 text-sm"
-          >
-            {PERIOD_UNITS.map((u) => (
-              <option key={u}>{u}</option>
-            ))}
-          </select>
+            className="w-full t-input rounded-lg px-3 py-2 text-sm"
+          />
         </div>
         <div>
-          <label className="text-[10px] uppercase tracking-wider font-medium block mb-1" style={{ color: 'var(--text-tertiary)' }}>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>
             Début
           </label>
           <input
@@ -176,7 +178,7 @@ function GoalForm({ initial, projects, onSave, onCancel }) {
           />
         </div>
         <div>
-          <label className="text-[10px] uppercase tracking-wider font-medium block mb-1" style={{ color: 'var(--text-tertiary)' }}>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>
             Fin
           </label>
           <input
@@ -223,6 +225,10 @@ export default function Goals() {
   const updateGoal = useStore((s) => s.updateGoal)
   const updateGoalValue = useStore((s) => s.updateGoalValue)
   const deleteGoal = useStore((s) => s.deleteGoal)
+  const customLists = useStore((s) => s.customLists)
+  const goalTypes = getList('goal_types', customLists)
+  const periodUnits = getList('period_units', customLists)
+  const confirm = useConfirm()
 
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -415,8 +421,8 @@ export default function Goals() {
                     </button>
                   )}
                   <button
-                    onClick={() => {
-                      if (confirm('Supprimer cet objectif ?')) deleteGoal(goal.id)
+                    onClick={async () => {
+                      if (await confirm('Supprimer cet objectif ?')) deleteGoal(goal.id)
                     }}
                     className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded"
                     style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}

@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar'
 import CommandPalette from './components/CommandPalette'
 import UpdateBanner from './components/UpdateBanner'
 import Onboarding from './components/Onboarding'
+import { ConfirmProvider } from './components/ConfirmDialog'
 import CommandCenter from './pages/CommandCenter'
 import Clients from './pages/Clients'
 import Projects from './pages/Projects'
@@ -13,6 +14,7 @@ import Goals from './pages/Goals'
 import Tasks from './pages/Tasks'
 import Trash from './pages/Trash'
 import SettingsPage from './pages/SettingsPage'
+import Calendar from './pages/Calendar'
 
 function App() {
   const initialize = useStore((s) => s.initialize)
@@ -63,28 +65,31 @@ function App() {
   }
 
   return (
-    <div
-      className="flex flex-col h-screen overflow-hidden transition-colors duration-200"
-      style={{ background: 'var(--bg-page)' }}
-    >
-      <UpdateBanner />
-      <div className="flex flex-1 overflow-hidden">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        <Routes>
-          <Route path="/" element={<CommandCenter />} />
-          <Route path="/clients" element={<Clients />} />
-          <Route path="/projets" element={<Projects />} />
-          <Route path="/finances" element={<Finances />} />
-          <Route path="/objectifs" element={<Goals />} />
-          <Route path="/taches" element={<Tasks />} />
-          <Route path="/corbeille" element={<Trash />} />
-          <Route path="/parametres" element={<SettingsPage />} />
-        </Routes>
-      </main>
-      <CommandPalette />
+    <ConfirmProvider>
+      <div
+        className="flex flex-col h-screen overflow-hidden transition-colors duration-200"
+        style={{ background: 'var(--bg-page)' }}
+      >
+        <UpdateBanner />
+        <div className="flex flex-1 overflow-hidden">
+        <Sidebar />
+        <main className="flex-1 overflow-y-auto">
+          <Routes>
+            <Route path="/" element={<CommandCenter />} />
+            <Route path="/clients" element={<Clients />} />
+            <Route path="/projets" element={<Projects />} />
+            <Route path="/finances" element={<Finances />} />
+            <Route path="/objectifs" element={<Goals />} />
+            <Route path="/taches" element={<Tasks />} />
+            <Route path="/calendrier" element={<Calendar />} />
+            <Route path="/corbeille" element={<Trash />} />
+            <Route path="/parametres" element={<SettingsPage />} />
+          </Routes>
+        </main>
+        <CommandPalette />
+        </div>
       </div>
-    </div>
+    </ConfirmProvider>
   )
 }
 

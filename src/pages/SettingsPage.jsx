@@ -12,10 +12,20 @@ import {
   HardDrive,
   Clock,
   Palette,
+  LayoutGrid,
+  Users,
+  FolderKanban,
+  Wallet,
+  Target,
+  ListTodo,
+  CalendarDays,
 } from 'lucide-react'
 import useStore from '../store/useStore'
 import { getBackupSettings, setBackupSettings } from '../db/dbManager'
 import { getAppVersion } from '../utils/updateChecker'
+import ListEditor from '../components/ListEditor'
+import { LIST_LABELS } from '../utils/customLists'
+import { useConfirm } from '../components/ConfirmDialog'
 
 const WORKSPACE_COLORS = [
   '#3B82F6', '#8B5CF6', '#EC4899', '#EF4444',
@@ -32,6 +42,7 @@ function WorkspaceCard({ ws, isActive, onSwitch, onRename, onDelete, onColorChan
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(ws.name)
   const [showColors, setShowColors] = useState(false)
+  const confirm = useConfirm()
 
   const handleSave = () => {
     if (name.trim() && name !== ws.name) {
@@ -109,8 +120,8 @@ function WorkspaceCard({ ws, isActive, onSwitch, onRename, onDelete, onColorChan
             <Edit3 size={12} />
           </button>
           <button
-            onClick={() => {
-              if (confirm(`Supprimer l'espace "${ws.name}" et toutes ses données ?`)) {
+            onClick={async () => {
+              if (await confirm(`Supprimer l'espace "${ws.name}" et toutes ses données ?`)) {
                 onDelete(ws.id)
               }
             }}
@@ -159,6 +170,11 @@ export default function SettingsPage() {
   const exportWs = useStore((s) => s.exportWorkspace)
   const importWs = useStore((s) => s.importWorkspace)
   const getStorageUsage = useStore((s) => s.getStorageUsage)
+  const customLists = useStore((s) => s.customLists)
+  const updateCustomList = useStore((s) => s.updateCustomList)
+  const enabledModules = useStore((s) => s.enabledModules)
+  const toggleModule = useStore((s) => s.toggleModule)
+  const confirm = useConfirm()
 
   const [snapName, setSnapName] = useState('')
   const [showSnapForm, setShowSnapForm] = useState(false)
@@ -196,7 +212,7 @@ export default function SettingsPage() {
           <Settings size={20} /> Paramètres
         </h1>
         <p className="text-[11px] mt-1 font-mono" style={{ color: 'var(--text-muted)' }}>
-          MonGouvernail v{getAppVersion()}
+          Mon Gouvernail v{getAppVersion()}
         </p>
       </div>
 
@@ -228,6 +244,54 @@ export default function SettingsPage() {
               onDelete={deleteWs}
               onColorChange={updateWsColor}
             />
+          ))}
+        </div>
+      </section>
+
+      {/* ── Modules ── */}
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2 mb-3" style={{ color: 'var(--text-tertiary)' }}>
+          <LayoutGrid size={14} /> Modules
+        </h2>
+        <p className="text-[11px] mb-4" style={{ color: 'var(--text-tertiary)' }}>
+          Activez ou désactivez les modules affichés dans la barre latérale.
+        </p>
+        <div className="t-card-flat rounded-lg divide-y" style={{ borderColor: 'var(--border-secondary)' }}>
+          {[
+            { key: 'clients', icon: Users, label: 'Clients', desc: 'Gestion de vos clients et contacts' },
+            { key: 'projets', icon: FolderKanban, label: 'Projets', desc: 'Suivi de vos projets' },
+            { key: 'finances', icon: Wallet, label: 'Finances', desc: 'Transactions, factures et CA' },
+            { key: 'objectifs', icon: Target, label: 'Objectifs', desc: 'Définition et suivi d\'objectifs' },
+            { key: 'taches', icon: ListTodo, label: 'Tâches', desc: 'Liste de tâches et to-dos' },
+            { key: 'calendrier', icon: CalendarDays, label: 'Calendrier', desc: 'Vue calendrier des échéances' },
+          ].map(({ key, icon: Icon, label, desc }) => (
+            <div
+              key={key}
+              className="flex items-center gap-3 px-4 py-3"
+              style={{ borderColor: 'var(--border-secondary)' }}
+            >
+              <Icon size={16} style={{ color: enabledModules[key] !== false ? 'var(--text-secondary)' : 'var(--text-muted)' }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm" style={{ color: enabledModules[key] !== false ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                  {label}
+                </p>
+                <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{desc}</p>
+              </div>
+              <button
+                onClick={() => toggleModule(key)}
+                className="relative w-9 h-5 rounded-full transition-colors flex-shrink-0"
+                style={{
+                  background: enabledModules[key] !== false ? '#3B82F6' : 'var(--bg-nested)',
+                }}
+              >
+                <div
+                  className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all"
+                  style={{
+                    left: enabledModules[key] !== false ? '18px' : '2px',
+                  }}
+                />
+              </button>
+            </div>
           ))}
         </div>
       </section>
@@ -304,7 +368,7 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={async () => {
-                      if (confirm('Restaurer ce snapshot ? Les données actuelles seront remplacées.')) {
+                      if (await confirm('Restaurer ce snapshot ? Les données actuelles seront remplacées.', { confirmLabel: 'Restaurer', danger: false })) {
                         await restoreSnap(snap.id)
                       }
                     }}
@@ -314,8 +378,8 @@ export default function SettingsPage() {
                     Restaurer
                   </button>
                   <button
-                    onClick={() => {
-                      if (confirm('Supprimer ce snapshot ?')) { deleteSnap(snap.id); setSnapVersion((v) => v + 1) }
+                    onClick={async () => {
+                      if (await confirm('Supprimer ce snapshot ?')) { deleteSnap(snap.id); setSnapVersion((v) => v + 1) }
                     }}
                     className="p-1 rounded hover:opacity-80"
                     style={{ color: '#ef4444' }}
@@ -327,6 +391,30 @@ export default function SettingsPage() {
             ))}
           </div>
         )}
+      </section>
+
+      {/* ── Custom Lists ── */}
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2 mb-3" style={{ color: 'var(--text-tertiary)' }}>
+          <Palette size={14} /> Listes personnalisables
+        </h2>
+        <p className="text-[11px] mb-4" style={{ color: 'var(--text-tertiary)' }}>
+          Ajoutez, masquez ou restaurez les valeurs des menus déroulants dans vos formulaires.
+        </p>
+        <div className="space-y-4">
+          {Object.keys(LIST_LABELS).map((listKey) => (
+            <div key={listKey} className="t-card-flat rounded-lg p-3">
+              <h3 className="text-xs font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                {LIST_LABELS[listKey]}
+              </h3>
+              <ListEditor
+                listKey={listKey}
+                customLists={customLists || {}}
+                onUpdate={updateCustomList}
+              />
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* ── Export / Import ── */}

@@ -7,6 +7,7 @@ import {
   Wallet,
   Target,
   ListTodo,
+  CalendarDays,
   Command,
   Sun,
   Moon,
@@ -21,12 +22,13 @@ import Logo from './Logo'
 import { getAppVersion } from '../utils/updateChecker'
 
 const links = [
-  { to: '/', icon: LayoutDashboard, label: 'Command Center' },
-  { to: '/clients', icon: Users, label: 'Clients' },
-  { to: '/projets', icon: FolderKanban, label: 'Projets' },
-  { to: '/finances', icon: Wallet, label: 'Finances' },
-  { to: '/objectifs', icon: Target, label: 'Objectifs' },
-  { to: '/taches', icon: ListTodo, label: 'Tâches' },
+  { to: '/', icon: LayoutDashboard, label: 'Command Center', key: null },
+  { to: '/clients', icon: Users, label: 'Clients', key: 'clients' },
+  { to: '/projets', icon: FolderKanban, label: 'Projets', key: 'projets' },
+  { to: '/finances', icon: Wallet, label: 'Finances', key: 'finances' },
+  { to: '/objectifs', icon: Target, label: 'Objectifs', key: 'objectifs' },
+  { to: '/taches', icon: ListTodo, label: 'Tâches', key: 'taches' },
+  { to: '/calendrier', icon: CalendarDays, label: 'Calendrier', key: 'calendrier' },
 ]
 
 function WorkspaceSelector() {
@@ -163,6 +165,9 @@ export default function Sidebar() {
   const theme = useStore((s) => s.theme)
   const toggleTheme = useStore((s) => s.toggleTheme)
   const trashCount = useStore((s) => s.trashCount)
+  const enabledModules = useStore((s) => s.enabledModules)
+
+  const visibleLinks = links.filter((l) => l.key === null || enabledModules[l.key] !== false)
 
   return (
     <aside
@@ -181,7 +186,7 @@ export default function Sidebar() {
           style={{ color: 'var(--text-primary)' }}
         >
           <Logo size={22} />
-          MonGouvernail
+          Mon Gouvernail
         </h1>
         <div className="mt-2">
           <WorkspaceSelector />
@@ -189,7 +194,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 p-2 space-y-0.5">
-        {links.map(({ to, icon: Icon, label }) => (
+        {visibleLinks.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}

@@ -3,18 +3,18 @@ import {
   Wallet,
   Plus,
   Search,
-  AlertTriangle,
   TrendingUp,
   CalendarDays,
-  ArrowRight,
+  Repeat,
+  Pause,
+  Play,
 } from 'lucide-react'
 import useStore from '../store/useStore'
 import { formatCurrency, formatDate, daysUntil } from '../utils/helpers'
-import {
-  TRANSACTION_TYPES,
-  TRANSACTION_STATUTS,
-  TRANSACTION_STATUS_COLORS,
-} from '../utils/constants'
+import { TRANSACTION_STATUS_COLORS } from '../utils/constants'
+import { getList } from '../utils/customLists'
+import CustomSelect from '../components/CustomSelect'
+import { useConfirm } from '../components/ConfirmDialog'
 
 function KPICard({ label, value, icon: Icon, color = 'var(--text-primary)', sub }) {
   return (
@@ -27,6 +27,13 @@ function KPICard({ label, value, icon: Icon, color = 'var(--text-primary)', sub 
       {sub && <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{sub}</p>}
     </div>
   )
+}
+
+const RECURRENCE_LABELS = {
+  mensuel: 'Mensuel',
+  trimestriel: 'Trimestriel',
+  semestriel: 'Semestriel',
+  annuel: 'Annuel',
 }
 
 function TransactionForm({ initial, clients, projects, onSave, onCancel }) {
@@ -43,6 +50,9 @@ function TransactionForm({ initial, clients, projects, onSave, onCancel }) {
       date_encaissement: null,
       reference: '',
       notes: '',
+      recurrence: null,
+      recurrence_active: true,
+      recurrence_jour: null,
     }
   )
 
@@ -51,74 +61,138 @@ function TransactionForm({ initial, clients, projects, onSave, onCancel }) {
   return (
     <div className="t-nested rounded-lg p-4 space-y-3">
       <div className="grid grid-cols-3 gap-3">
-        <select
-          value={form.client_id}
-          onChange={(e) => set('client_id', e.target.value)}
-          className="t-input rounded px-3 py-2 text-sm outline-none"
-        >
-          <option value="">Client</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>{c.nom.split('—')[0]?.trim()}</option>
-          ))}
-        </select>
-        <select
-          value={form.type}
-          onChange={(e) => set('type', e.target.value)}
-          className="t-input rounded px-3 py-2 text-sm outline-none"
-        >
-          {TRANSACTION_TYPES.map((t) => (
-            <option key={t}>{t}</option>
-          ))}
-        </select>
-        <select
-          value={form.statut}
-          onChange={(e) => set('statut', e.target.value)}
-          className="t-input rounded px-3 py-2 text-sm outline-none"
-        >
-          {TRANSACTION_STATUTS.map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Client</label>
+          <select
+            value={form.client_id}
+            onChange={(e) => set('client_id', e.target.value)}
+            className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+          >
+            <option value="">Sans client</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>{c.nom.split('—')[0]?.trim()}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Type</label>
+          <CustomSelect
+            listKey="transaction_types"
+            value={form.type}
+            onChange={(e) => {
+              const val = e.target.value
+              set('type', val)
+              if (val === 'Abonnement' && !form.recurrence) set('recurrence', 'mensuel')
+              if (val !== 'Abonnement') { set('recurrence', null); set('recurrence_active', true) }
+            }}
+            className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Statut</label>
+          <CustomSelect
+            listKey="transaction_statuts"
+            value={form.statut}
+            onChange={(e) => set('statut', e.target.value)}
+            className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+          />
+        </div>
       </div>
       <div className="grid grid-cols-4 gap-3">
-        <input
-          value={form.reference}
-          onChange={(e) => set('reference', e.target.value)}
-          placeholder="Référence"
-          className="t-input rounded px-3 py-2 text-sm outline-none"
-        />
-        <input
-          type="number"
-          value={form.montant_ht || ''}
-          onChange={(e) => {
-            const ht = +e.target.value
-            set('montant_ht', ht)
-            set('montant_ttc', Math.round(ht * 1.2 * 100) / 100)
-          }}
-          placeholder="Montant HT"
-          className="t-input rounded px-3 py-2 text-sm outline-none"
-        />
-        <input
-          type="number"
-          value={form.montant_ttc || ''}
-          onChange={(e) => set('montant_ttc', +e.target.value)}
-          placeholder="Montant TTC"
-          className="t-input rounded px-3 py-2 text-sm outline-none"
-        />
-        <input
-          type="date"
-          value={form.date_echeance}
-          onChange={(e) => set('date_echeance', e.target.value)}
-          className="t-input rounded px-3 py-2 text-sm outline-none"
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Référence</label>
+          <input
+            value={form.reference}
+            onChange={(e) => set('reference', e.target.value)}
+            placeholder="FAC-001"
+            className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Montant HT</label>
+          <input
+            type="number"
+            value={form.montant_ht || ''}
+            onChange={(e) => {
+              const ht = +e.target.value
+              set('montant_ht', ht)
+              set('montant_ttc', Math.round(ht * 1.2 * 100) / 100)
+            }}
+            placeholder="0.00"
+            className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Montant TTC</label>
+          <input
+            type="number"
+            value={form.montant_ttc || ''}
+            onChange={(e) => set('montant_ttc', +e.target.value)}
+            placeholder="0.00"
+            className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Échéance</label>
+          <input
+            type="date"
+            value={form.date_echeance}
+            onChange={(e) => set('date_echeance', e.target.value)}
+            className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+          />
+        </div>
+      </div>
+      {/* Récurrence — visible quand type = Abonnement */}
+      {form.type === 'Abonnement' && (
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Fréquence</label>
+            <select
+              value={form.recurrence || 'mensuel'}
+              onChange={(e) => set('recurrence', e.target.value)}
+              className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+            >
+              {Object.entries(RECURRENCE_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Jour du mois</label>
+            <select
+              value={form.recurrence_jour || ''}
+              onChange={(e) => set('recurrence_jour', e.target.value ? +e.target.value : null)}
+              className="w-full t-input rounded px-3 py-2 text-sm outline-none"
+            >
+              <option value="">Auto</option>
+              {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                <option key={d} value={d}>Le {d}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end pb-1">
+            <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text-tertiary)' }}>
+              <input
+                type="checkbox"
+                checked={form.recurrence_active !== false}
+                onChange={(e) => set('recurrence_active', e.target.checked)}
+                className="rounded"
+              />
+              Récurrence active
+            </label>
+          </div>
+        </div>
+      )}
+      <div>
+        <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>Notes</label>
+        <textarea
+          value={form.notes}
+          onChange={(e) => set('notes', e.target.value)}
+          placeholder="Notes"
+          rows={2}
+          className="w-full t-input rounded px-3 py-2 text-sm outline-none resize-none"
         />
       </div>
-      <textarea
-        value={form.notes}
-        onChange={(e) => set('notes', e.target.value)}
-        placeholder="Notes"
-        rows={2}
-        className="w-full t-input rounded px-3 py-2 text-sm outline-none resize-none"
-      />
       <div className="flex justify-end gap-2">
         <button onClick={onCancel} className="px-3 py-1.5 text-sm hover:opacity-75" style={{ color: 'var(--text-secondary)' }}>
           Annuler
@@ -134,8 +208,12 @@ function TransactionForm({ initial, clients, projects, onSave, onCancel }) {
   )
 }
 
-function TransactionRow({ tx, client, onEdit, onDelete }) {
+function TransactionRow({ tx, client, onEdit, onDelete, onTogglePause }) {
   const [hovered, setHovered] = useState(false)
+  const confirm = useConfirm()
+  const isRecurrent = tx.type === 'Abonnement' && tx.recurrence
+  const isPaused = isRecurrent && tx.recurrence_active === false
+
   return (
     <tr
       onMouseEnter={() => setHovered(true)}
@@ -143,6 +221,7 @@ function TransactionRow({ tx, client, onEdit, onDelete }) {
       style={{
         borderBottomColor: 'var(--border-secondary)',
         backgroundColor: hovered ? 'var(--bg-nested-hover)' : 'transparent',
+        opacity: isPaused ? 0.55 : 1,
       }}
       className="border-b transition-colors"
     >
@@ -153,9 +232,24 @@ function TransactionRow({ tx, client, onEdit, onDelete }) {
         {client?.nom?.split('—')[0]?.trim() || '—'}
       </td>
       <td className="px-4 py-2.5">
-        <span className="text-[10px] px-1.5 py-0.5 rounded t-tag" style={{ color: 'var(--text-secondary)' }}>
-          {tx.type}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] px-1.5 py-0.5 rounded t-tag" style={{ color: 'var(--text-secondary)' }}>
+            {tx.type}
+          </span>
+          {isRecurrent && (
+            <span
+              className="text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1"
+              style={{
+                color: isPaused ? '#F59E0B' : '#8B5CF6',
+                background: isPaused ? 'rgba(245,158,11,0.1)' : 'rgba(139,92,246,0.1)',
+              }}
+            >
+              {isPaused ? <Pause size={8} /> : <Repeat size={8} />}
+              {RECURRENCE_LABELS[tx.recurrence]}{tx.recurrence_jour ? ` · le ${tx.recurrence_jour}` : ''}
+              {isPaused && ' · En pause'}
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-4 py-2.5">
         <span
@@ -176,6 +270,20 @@ function TransactionRow({ tx, client, onEdit, onDelete }) {
       </td>
       <td className="px-4 py-2.5">
         <div className="flex items-center gap-1">
+          {isRecurrent && (
+            <button
+              onClick={() => onTogglePause(tx.id, !isPaused)}
+              className="text-[10px] px-1.5 py-0.5 rounded hover:opacity-75 flex items-center gap-0.5"
+              style={{
+                color: isPaused ? '#10B981' : '#F59E0B',
+                background: isPaused ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)',
+              }}
+              title={isPaused ? 'Reprendre' : 'Mettre en pause'}
+            >
+              {isPaused ? <Play size={8} /> : <Pause size={8} />}
+              {isPaused ? 'Reprendre' : 'Pause'}
+            </button>
+          )}
           <button
             onClick={() => onEdit(tx.id)}
             className="text-[10px] px-1.5 py-0.5 hover:opacity-75"
@@ -184,8 +292,8 @@ function TransactionRow({ tx, client, onEdit, onDelete }) {
             Modifier
           </button>
           <button
-            onClick={() => {
-              if (confirm('Supprimer ?')) onDelete(tx.id)
+            onClick={async () => {
+              if (await confirm('Supprimer cette transaction ?')) onDelete(tx.id)
             }}
             className="text-[10px] px-1.5 py-0.5 hover:opacity-75"
             style={{ color: '#ef4444' }}
@@ -198,8 +306,6 @@ function TransactionRow({ tx, client, onEdit, onDelete }) {
   )
 }
 
-const PIPELINE_STEPS = ['À émettre', 'Envoyée', 'En attente', 'Encaissée']
-
 export default function Finances() {
   const transactions = useStore((s) => s.transactions)
   const clients = useStore((s) => s.clients)
@@ -207,6 +313,9 @@ export default function Finances() {
   const addTransaction = useStore((s) => s.addTransaction)
   const updateTransaction = useStore((s) => s.updateTransaction)
   const deleteTransaction = useStore((s) => s.deleteTransaction)
+  const customLists = useStore((s) => s.customLists)
+  const transactionTypes = getList('transaction_types', customLists)
+  const transactionStatuts = getList('transaction_statuts', customLists)
 
   // Compute totals using useMemo to avoid infinite loop
   const { totalToCollect, mrr, caMonth, caYTD } = useMemo(() => {
@@ -221,7 +330,7 @@ export default function Finances() {
     let mrrTotal = 0
 
     transactions.forEach((t) => {
-      if (t.statut === 'Encaissée' || t.statut === 'En attente') {
+      if (t.statut !== 'Encaissée') {
         total += t.montant_ttc || 0
       }
       if (t.statut === 'Encaissée') {
@@ -235,14 +344,20 @@ export default function Finances() {
           }
         }
       }
-      if (t.type === 'Facture') {
-        mrrTotal += t.montant_ttc || 0
+      // MRR : abonnements actifs, ramenés au mois
+      if (t.type === 'Abonnement' && t.recurrence_active !== false) {
+        const amount = t.montant_ttc || 0
+        const freq = t.recurrence || 'mensuel'
+        if (freq === 'mensuel') mrrTotal += amount
+        else if (freq === 'trimestriel') mrrTotal += amount / 3
+        else if (freq === 'semestriel') mrrTotal += amount / 6
+        else if (freq === 'annuel') mrrTotal += amount / 12
       }
     })
 
     return {
       totalToCollect: total,
-      mrr: Math.round(mrrTotal / 12),
+      mrr: Math.round(mrrTotal),
       caMonth: monthTotal,
       caYTD: ytdTotal,
     }
@@ -253,7 +368,6 @@ export default function Finances() {
   const [filterType, setFilterType] = useState('Tous')
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [view, setView] = useState('list') // 'list' | 'pipeline'
 
   const overdue = transactions.filter((t) => t.statut === 'En retard')
 
@@ -284,13 +398,6 @@ export default function Finances() {
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{transactions.length} transactions</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setView(view === 'list' ? 'pipeline' : 'list')}
-            className="px-3 py-2 text-sm rounded-lg t-card hover:opacity-80"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            {view === 'list' ? 'Pipeline' : 'Liste'}
-          </button>
           <button
             onClick={() => setCreating(true)}
             className="flex items-center gap-1.5 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-500"
@@ -343,94 +450,7 @@ export default function Finances() {
         </div>
       )}
 
-      {view === 'pipeline' ? (
-        /* Pipeline view */
-        <div className="grid grid-cols-4 gap-3">
-          {PIPELINE_STEPS.map((step) => {
-            const items = transactions.filter((t) => t.statut === step)
-            const total = items.reduce((s, t) => s + (t.montant_ttc || 0), 0)
-            return (
-              <div key={step}>
-                <div className="flex items-center justify-between mb-2 px-1">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-2 h-2 rounded-full"
-                      style={{ background: TRANSACTION_STATUS_COLORS[step] }}
-                    />
-                    <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{step}</span>
-                  </div>
-                  <span className="text-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
-                    {formatCurrency(total)}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {items.map((tx) => {
-                    const client = getClient(tx.client_id)
-                    return (
-                      <div
-                        key={tx.id}
-                        className="t-card-flat rounded-lg p-3"
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>{tx.reference}</span>
-                          <span className="text-sm font-mono font-medium" style={{ color: 'var(--text-primary)' }}>
-                            {formatCurrency(tx.montant_ttc)}
-                          </span>
-                        </div>
-                        <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
-                          {client?.nom?.split('—')[0]?.trim() || '—'}
-                        </p>
-                        <p className="text-[10px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
-                          {tx.type} · {formatDate(tx.date_echeance)}
-                        </p>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
-          {/* En retard column */}
-          {overdue.length > 0 && (
-            <div className="col-span-4">
-              <div className="flex items-center gap-2 mb-2 px-1">
-                <AlertTriangle size={14} className="text-red-400" />
-                <span className="text-xs font-medium text-red-400">
-                  En retard ({overdue.length})
-                </span>
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                {overdue.map((tx) => {
-                  const client = getClient(tx.client_id)
-                  return (
-                    <div
-                      key={tx.id}
-                      className="t-card-flat rounded-lg p-3"
-                      style={{ borderColor: 'rgba(239, 68, 68, 0.2)' }}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>{tx.reference}</span>
-                        <span className="text-sm font-mono font-medium" style={{ color: '#ef4444' }}>
-                          {formatCurrency(tx.montant_ttc)}
-                        </span>
-                      </div>
-                      <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        {client?.nom?.split('—')[0]?.trim()}
-                      </p>
-                      <p className="text-[10px] mt-1" style={{ color: '#ef4444' }}>
-                        Échéance : {formatDate(tx.date_echeance)}
-                      </p>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* List view */
-        <>
-          <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-4">
             <div className="relative flex-1 max-w-xs">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }} />
               <input
@@ -446,7 +466,7 @@ export default function Finances() {
               className="t-input rounded-lg px-3 py-2 text-sm outline-none"
             >
               <option>Tous</option>
-              {TRANSACTION_STATUTS.map((s) => (
+              {transactionStatuts.map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </select>
@@ -456,7 +476,7 @@ export default function Finances() {
               className="t-input rounded-lg px-3 py-2 text-sm outline-none"
             >
               <option>Tous</option>
-              {TRANSACTION_TYPES.map((t) => (
+              {transactionTypes.map((t) => (
                 <option key={t}>{t}</option>
               ))}
             </select>
@@ -495,13 +515,12 @@ export default function Finances() {
                     client={getClient(tx.client_id)}
                     onEdit={setEditing}
                     onDelete={deleteTransaction}
+                    onTogglePause={(id, paused) => updateTransaction(id, { recurrence_active: !paused })}
                   />
                 ))}
               </tbody>
             </table>
           </div>
-        </>
-      )}
     </div>
   )
 }
