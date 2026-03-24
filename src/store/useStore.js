@@ -178,24 +178,39 @@ const useStore = create(
         if (theme) set({ theme })
 
         // Rename default workspace if a name was provided
-        if (workspaceName) {
-          const wsId = getActiveWorkspaceId()
-          if (wsId) await renameWorkspace(wsId, workspaceName)
+        try {
+          if (workspaceName) {
+            const wsId = getActiveWorkspaceId()
+            if (wsId) await renameWorkspace(wsId, workspaceName)
+          }
+        } catch (err) {
+          console.error('[Onboarding] Rename workspace failed:', err)
         }
 
-        // Create "Démo" workspace with seed data
-        const demoWs = await createWorkspace('Démo', { color: '#F59E0B' })
-        await switchWs(demoWs.id)
-        await switchDB(demoWs.id)
-        get()._seedDatabase()
-        await persistDBSync()
+        // Create "Démo" workspace with seed data (non-critical)
+        try {
+          const demoWs = await createWorkspace('Démo', { color: '#F59E0B' })
+          await switchWs(demoWs.id)
+          await switchDB(demoWs.id)
+          get()._seedDatabase()
+          await persistDBSync()
 
-        // Switch back to the user's main workspace
-        const reg = getWorkspaces()
-        const mainWs = reg.find((w) => w.id !== demoWs.id)
-        if (mainWs) {
-          await switchWs(mainWs.id)
-          await switchDB(mainWs.id)
+          // Switch back to the user's main workspace
+          const reg = getWorkspaces()
+          const mainWs = reg.find((w) => w.id !== demoWs.id)
+          if (mainWs) {
+            await switchWs(mainWs.id)
+            await switchDB(mainWs.id)
+          }
+        } catch (err) {
+          console.error('[Onboarding] Demo workspace creation failed:', err)
+          // Ensure we're on a valid workspace even if demo creation failed
+          try {
+            const fallbackId = getActiveWorkspaceId()
+            if (fallbackId) await switchDB(fallbackId)
+          } catch (e) {
+            console.error('[Onboarding] Fallback switchDB failed:', e)
+          }
         }
 
         get()._refreshAll()

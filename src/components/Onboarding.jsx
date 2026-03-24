@@ -22,7 +22,7 @@ export default function Onboarding() {
   const [activite, setActivite] = useState('')
   const [theme, setTheme] = useState('light')
   const [workspaceName, setWorkspaceName] = useState('')
-
+  const [loading, setLoading] = useState(false)
 
   const currentStep = STEPS[step]
   const canNext =
@@ -38,13 +38,21 @@ export default function Onboarding() {
     }
   }
 
-  const finish = () => {
-    completeOnboarding({
-      prenom: prenom.trim(),
-      activite,
-      theme,
-      workspaceName: workspaceName.trim() || 'Principal',
-    })
+  const finish = async () => {
+    if (loading) return
+    setLoading(true)
+    try {
+      await completeOnboarding({
+        prenom: prenom.trim(),
+        activite,
+        theme,
+        workspaceName: workspaceName.trim() || 'Principal',
+      })
+    } catch (err) {
+      console.error('[Onboarding] Unexpected error:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Apply theme preview in real-time
@@ -257,9 +265,19 @@ export default function Onboarding() {
           {currentStep === 'done' ? (
             <button
               onClick={finish}
-              className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors mx-auto"
+              disabled={loading}
+              className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors mx-auto disabled:opacity-60 disabled:cursor-wait"
             >
-              Commencer <ArrowRight size={16} />
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Préparation…
+                </>
+              ) : (
+                <>
+                  Commencer <ArrowRight size={16} />
+                </>
+              )}
             </button>
           ) : (
             <button
