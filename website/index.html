@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mon Gouvernail — Tableau de bord pour indépendants</title>
+  <meta name="description" content="Pilotez votre activité d'indépendant depuis un seul tableau de bord. Clients, projets, finances, tâches — 100% hors-ligne, vos données restent chez vous." />
+  <meta name="theme-color" content="#0a0a14" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Mon Gouvernail — Tableau de bord pour indépendants" />
+  <meta property="og:description" content="L'outil gratuit et open-source pour piloter votre activité. Desktop, offline, privé." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="./og-image.png" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a14;
+      --bg-card: #12121f;
+      --bg-card-hover: #1a1a2e;
+      --accent: #2E86F0;
+      --accent-light: #5BA3F5;
+      --accent-glow: rgba(46, 134, 240, 0.15);
+      --text: #f0f0f5;
+      --text-secondary: #9898b0;
+      --text-muted: #5c5c78;
+      --border: #1e1e35;
+      --success: #22c55e;
+      --gold: #F59E0B;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--accent-light); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+      backdrop-filter: blur(12px);
+      background: rgba(10, 10, 20, 0.8);
+      border-bottom: 1px solid var(--border);
+    }
+    nav .container {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 700; font-size: 1.05rem; color: var(--text);
+    }
+    .nav-links { display: flex; gap: 28px; align-items: center; }
+    .nav-links a { color: var(--text-secondary); font-size: 0.875rem; font-weight: 500; text-decoration: none; }
+    .nav-links a:hover { color: var(--text); }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 160px 0 100px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero h1 {
+      font-size: clamp(2.2rem, 5vw, 3.5rem);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .hero h1 span { color: var(--accent-light); }
+    .hero p {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      max-width: 580px;
+      margin: 0 auto 40px;
+      position: relative;
+    }
+    .hero-actions {
+      display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+      position: relative;
+    }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 28px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--accent-light); text-decoration: none; }
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--bg-card-hover); border-color: var(--text-muted); text-decoration: none; }
+    .btn-sponsor {
+      background: linear-gradient(135deg, #F59E0B, #F97316);
+      color: #fff;
+    }
+    .btn-sponsor:hover { opacity: 0.9; text-decoration: none; }
+
+    /* ── BADGES ── */
+    .badges {
+      display: flex; gap: 20px; justify-content: center;
+      margin-top: 48px; position: relative;
+    }
+    .badge {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .badge svg { width: 14px; height: 14px; }
+
+    /* ── SECTION ── */
+    section { padding: 100px 0; }
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+    }
+    .section-desc {
+      color: var(--text-secondary);
+      max-width: 560px;
+      margin-bottom: 48px;
+    }
+
+    /* ── FEATURES GRID ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .feature-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .feature-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 16px;
+      font-size: 1.2rem;
+    }
+    .feature-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 8px; }
+    .feature-card p { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.55; }
+
+    /* ── PRIVACY BANNER ── */
+    .privacy-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 48px;
+      text-align: center;
+    }
+    .privacy-section h2 { margin-bottom: 12px; }
+    .privacy-icons {
+      display: flex; gap: 40px; justify-content: center;
+      margin-top: 32px; flex-wrap: wrap;
+    }
+    .privacy-item {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      font-size: 0.85rem; color: var(--text-secondary);
+    }
+    .privacy-item .icon {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      background: var(--accent-glow);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem;
+    }
+
+    /* ── ROADMAP / PRICING ── */
+    .plan-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px;
+    }
+    .plan-price {
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .plan-price span { font-size: 0.9rem; font-weight: 400; color: var(--text-muted); }
+    .plan-desc {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+    .plan-features { list-style: none; }
+    .plan-features li {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      padding: 7px 0;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .plan-features li::before {
+      content: '✓';
+      color: var(--success);
+      font-weight: 700;
+      font-size: 0.8rem;
+    }
+
+    /* ── DOWNLOAD FORM ── */
+    .download-box {
+      max-width: 480px;
+      margin: 32px auto 0;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      text-align: left;
+    }
+    .form-row {
+      display: flex; gap: 12px;
+    }
+    .form-group {
+      flex: 1; display: flex; flex-direction: column; gap: 6px;
+    }
+    .form-group label {
+      font-size: 0.8rem; font-weight: 500; color: var(--text-secondary);
+    }
+    .form-group input,
+    .form-group select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      color: var(--text);
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--accent);
+    }
+    .form-group input::placeholder {
+      color: var(--text-muted);
+    }
+    .form-group select {
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239898b0' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+    .form-group select option {
+      background: var(--bg-card);
+      color: var(--text);
+    }
+    .form-hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 10px;
+    }
+    .form-version {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* ── SPONSOR ── */
+    .sponsor-section { text-align: center; }
+    .sponsor-section .section-desc { margin-left: auto; margin-right: auto; }
+    .sponsor-buttons {
+      display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+      margin-top: 32px;
+    }
+    .sponsor-note {
+      margin-top: 20px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    footer a { color: var(--text-secondary); }
+    .footer-links { display: flex; gap: 24px; justify-content: center; margin-bottom: 16px; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 640px) {
+      .hero { padding: 130px 0 60px; }
+      .privacy-section { padding: 32px 20px; }
+      .plans-grid { grid-template-columns: 1fr; }
+      .nav-links { gap: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="container">
+    <div class="nav-brand">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="28" height="28">
+        <defs><radialGradient id="nb" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#1a1a2e"/><stop offset="100%" stop-color="#0a0a14"/></radialGradient></defs>
+        <rect width="512" height="512" rx="96" fill="url(#nb)"/>
+        <circle cx="256" cy="256" r="175" fill="none" stroke="#2E86F0" stroke-width="18" opacity="0.9"/>
+        <polygon points="256,72 272,232 256,256 240,232" fill="#2E86F0"/>
+        <polygon points="256,440 240,280 256,256 272,280" fill="#2E86F0"/>
+        <polygon points="420,256 280,240 256,256 280,272" fill="#2E86F0" opacity="0.75"/>
+        <polygon points="92,256 232,272 256,256 232,240" fill="#2E86F0" opacity="0.75"/>
+        <circle cx="256" cy="256" r="16" fill="#2E86F0" opacity="0.6"/>
+      </svg>
+      Mon Gouvernail
+    </div>
+    <div class="nav-links">
+      <a href="#fonctionnalites">Fonctionnalités</a>
+      <a href="#tarifs">Open-source</a>
+      <a href="#soutenir">Soutenir</a>
+      <a href="https://github.com/hugommusic/hms-commandboard" target="_blank">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <h1>Pilotez votre activité<br/>depuis <span>un seul tableau de bord</span></h1>
+    <p>
+      Clients, projets, finances, tâches, documents — tout au même endroit.
+      Gratuit, open-source, et vos données restent sur votre machine.
+    </p>
+    <div class="hero-actions">
+      <a href="#telecharger" class="btn btn-primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Télécharger
+      </a>
+      <a href="https://github.com/hugomusicmusic/hms-commandboard" target="_blank" class="btn btn-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+        Voir le code
+      </a>
+    </div>
+    <div class="badges">
+      <div class="badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        100% gratuit
+      </div>
+      <div class="badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Données privées
+      </div>
+      <div class="badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        Offline-first
+      </div>
+      <div class="badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Open-source
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="fonctionnalites">
+  <div class="container">
+    <p class="section-label">Fonctionnalités</p>
+    <h2 class="section-title">Tout ce dont vous avez besoin, rien de superflu</h2>
+    <p class="section-desc">Conçu par un indépendant, pour les indépendants. Chaque module est pensé pour simplifier votre quotidien.</p>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon" style="background: rgba(59,130,246,0.12);">👥</div>
+        <h3>Gestion des clients</h3>
+        <p>Suivez vos clients, contacts, dernières interactions et prochains jalons. Ne laissez plus passer une relance.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background: rgba(168,85,247,0.12);">📋</div>
+        <h3>Projets & tâches</h3>
+        <p>Organisez vos projets par statut et priorité. Gérez vos tâches avec deadlines, tags et liaisons client/projet.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background: rgba(34,197,94,0.12);">💰</div>
+        <h3>Finances</h3>
+        <p>Factures, devis, abonnements récurrents. Visualisez vos revenus et suivez les paiements en attente.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background: rgba(245,158,11,0.12);">🎯</div>
+        <h3>Objectifs</h3>
+        <p>Définissez des objectifs mesurables liés à vos projets. Suivez votre progression en temps réel.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background: rgba(239,68,68,0.12);">📅</div>
+        <h3>Calendrier</h3>
+        <p>Vue mensuelle de vos deadlines, échéances et jalons. Tout est synchronisé automatiquement.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background: rgba(20,184,166,0.12);">📄</div>
+        <h3>Documents & notes</h3>
+        <p>Stockez vos fichiers, créez des notes Markdown, organisez par dossiers avec tags et épingles.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background: rgba(99,102,241,0.12);">🏢</div>
+        <h3>Multi-espaces</h3>
+        <p>Séparez vos activités en espaces de travail indépendants. Chacun avec ses données et préférences.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background: rgba(236,72,153,0.12);">💾</div>
+        <h3>Snapshots & backups</h3>
+        <p>Sauvegardez l'état de vos données à tout moment. Backups automatiques avant chaque suppression.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRIVACY -->
+<section>
+  <div class="container">
+    <div class="privacy-section">
+      <p class="section-label">Vie privée</p>
+      <h2 class="section-title">Vos données ne quittent jamais votre machine</h2>
+      <p style="color: var(--text-secondary); max-width: 520px; margin: 0 auto;">
+        Pas de cloud, pas de compte, pas de tracking. Mon Gouvernail fonctionne 100% en local
+        grâce à une base SQLite embarquée. Même sans internet.
+      </p>
+      <div class="privacy-icons">
+        <div class="privacy-item">
+          <div class="icon">🔒</div>
+          Stockage local
+        </div>
+        <div class="privacy-item">
+          <div class="icon">🚫</div>
+          Zéro télémétrie
+        </div>
+        <div class="privacy-item">
+          <div class="icon">✈️</div>
+          Fonctionne offline
+        </div>
+        <div class="privacy-item">
+          <div class="icon">📦</div>
+          Export à tout moment
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- OPEN SOURCE -->
+<section id="tarifs">
+  <div class="container" style="text-align: center;">
+    <p class="section-label">Open-source</p>
+    <h2 class="section-title">Gratuit, pour toujours</h2>
+    <p class="section-desc" style="margin-left: auto; margin-right: auto;">
+      Mon Gouvernail est 100% open-source sous licence MIT. Toutes les fonctionnalités sont incluses, sans restrictions.
+    </p>
+
+    <div style="max-width: 480px; margin: 0 auto;">
+      <div class="plan-card">
+        <p class="plan-price">0 € <span>pour toujours</span></p>
+        <p class="plan-desc">Tout est inclus. Pas de plan payant, pas de fonctionnalités cachées.</p>
+        <ul class="plan-features">
+          <li>Command Center (tableau de bord)</li>
+          <li>Gestion clients, projets, tâches</li>
+          <li>Suivi finances & abonnements</li>
+          <li>Objectifs mesurables</li>
+          <li>Calendrier intégré</li>
+          <li>Documents & notes Markdown</li>
+          <li>Multi-espaces de travail</li>
+          <li>Snapshots & auto-backups</li>
+          <li>Import / Export des données</li>
+          <li>Thème clair & sombre</li>
+          <li>Palette de commandes (⌘K)</li>
+        </ul>
+        <a href="#telecharger" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 24px;">
+          Télécharger gratuitement
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section id="telecharger" style="padding-bottom: 60px;">
+  <div class="container" style="text-align: center;">
+    <p class="section-label">Téléchargement</p>
+    <h2 class="section-title">Prêt à prendre le gouvernail ?</h2>
+    <p class="section-desc" style="margin-left: auto; margin-right: auto;">
+      Disponible sur macOS et Windows. Installez, lancez, c'est prêt — aucun compte nécessaire.
+    </p>
+
+    <!-- Download form (email optional, WampServer-style) -->
+    <div class="download-box">
+      <form id="downloadForm" onsubmit="return handleDownload(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="dl-prenom">Prénom</label>
+            <input type="text" id="dl-prenom" name="prenom" placeholder="Hugo" autocomplete="given-name" />
+          </div>
+          <div class="form-group">
+            <label for="dl-email">Email</label>
+            <input type="email" id="dl-email" name="email" placeholder="vous@exemple.com" autocomplete="email" />
+          </div>
+        </div>
+        <p class="form-hint">Recevez les mises à jour et nouveautés directement dans votre boîte mail.</p>
+
+        <div class="form-row" style="margin-top: 20px;">
+          <div class="form-group" style="flex: 1;">
+            <label for="dl-os">Plateforme</label>
+            <select id="dl-os" name="os">
+              <option value="macos">macOS (Apple Silicon)</option>
+              <option value="windows">Windows (x64)</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 20px; padding: 14px 28px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Télécharger gratuitement
+        </button>
+      </form>
+      <p class="form-version">
+        v1.1.2 · <a href="https://github.com/hugomusicmusic/hms-commandboard/releases">Voir toutes les versions</a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<script>
+// Download links per platform — update these with actual asset URLs
+const DOWNLOAD_LINKS = {
+  macos: 'https://github.com/hugomusicmusic/hms-commandboard/releases/latest',
+  windows: 'https://github.com/hugomusicmusic/hms-commandboard/releases/latest',
+};
+
+// TODO: Replace with your Brevo form endpoint
+// To get this URL: Brevo dashboard → Contacts → Forms → Create form → Get embed/API endpoint
+const BREVO_FORM_URL = null; // e.g. 'https://sibforms.com/serve/YOUR_FORM_ID'
+
+async function handleDownload(e) {
+  e.preventDefault();
+
+  const prenom = document.getElementById('dl-prenom').value.trim();
+  const email = document.getElementById('dl-email').value.trim();
+  const os = document.getElementById('dl-os').value;
+
+  // If user provided an email, send to Brevo (non-blocking)
+  if (email && BREVO_FORM_URL) {
+    try {
+      const body = new FormData();
+      body.append('PRENOM', prenom);
+      body.append('EMAIL', email);
+      body.append('OS', os);
+      fetch(BREVO_FORM_URL, { method: 'POST', body, mode: 'no-cors' });
+    } catch (_) {
+      // Silent fail — don't block download
+    }
+  }
+
+  // Redirect to download immediately
+  window.open(DOWNLOAD_LINKS[os], '_blank');
+}
+
+// Auto-detect OS
+(function() {
+  const ua = navigator.userAgent.toLowerCase();
+  const sel = document.getElementById('dl-os');
+  if (ua.includes('win')) sel.value = 'windows';
+  else sel.value = 'macos';
+})();
+</script>
+
+<!-- SPONSOR -->
+<section id="soutenir" class="sponsor-section">
+  <div class="container">
+    <p class="section-label">Soutenir le projet</p>
+    <h2 class="section-title">Un projet indépendant, comme vous</h2>
+    <p class="section-desc" style="margin-left: auto; margin-right: auto;">
+      Mon Gouvernail est développé sur mon temps libre. Si l'outil vous est utile,
+      un café ou un soutien mensuel m'aide à continuer à le développer et à le maintenir gratuit.
+    </p>
+    <div class="sponsor-buttons">
+      <a href="https://buymeacoffee.com/hmorales" target="_blank" class="btn btn-sponsor">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.216 6.415l-.132-.666c-.119-.598-.388-1.163-1.001-1.379-.197-.069-.42-.098-.57-.241-.152-.143-.196-.366-.231-.572-.065-.378-.125-.756-.192-1.133-.057-.325-.102-.69-.25-.987-.195-.4-.597-.634-.996-.788a5.723 5.723 0 00-.626-.194c-1-.263-2.05-.36-3.077-.416a25.834 25.834 0 00-3.7.062c-.915.083-1.88.184-2.75.5-.318.116-.646.256-.888.501-.297.302-.393.77-.177 1.146.154.267.415.456.692.58.36.162.737.284 1.123.366 1.075.238 2.189.331 3.287.37 1.218.05 2.437.01 3.65-.118.299-.033.598-.073.896-.119.352-.054.578-.513.474-.834-.124-.383-.457-.531-.834-.473-.466.074-.96.108-1.382.146-1.177.08-2.358.082-3.536.006a22.228 22.228 0 01-1.157-.107c-.086-.01-.18-.025-.258-.036-.243-.036-.484-.08-.724-.13-.111-.027-.111-.185 0-.212h.005c.277-.06.557-.108.838-.147h.002c.131-.009.263-.032.394-.048a25.076 25.076 0 013.426-.12c.674.019 1.347.067 2.017.144l.228.031c.267.04.533.088.798.145.392.085.895.113 1.07.542.055.137.08.288.111.431l.319 1.484a.237.237 0 01-.199.284h-.003c-.037.006-.075.01-.112.015a36.704 36.704 0 01-4.743.295 37.059 37.059 0 01-4.699-.304c-.14-.017-.293-.042-.417-.06-.326-.048-.649-.108-.973-.161-.393-.065-.768-.032-1.123.161-.29.16-.527.404-.675.701-.154.316-.199.66-.267 1-.069.34-.176.707-.135 1.056.087.753.613 1.365 1.37 1.502a39.69 39.69 0 0011.343.376.483.483 0 01.535.53l-.071.697-1.018 9.907c-.041.41-.047.832-.125 1.237-.122.637-.553 1.028-1.182 1.171-.577.131-1.165.185-1.756.205-.656.023-1.316-.001-1.97-.039-.656-.04-1.296-.127-1.938-.253-.29-.057-.567-.154-.84-.276-.274-.123-.42-.352-.426-.65-.003-.268 0-.537 0-.805V18.17c0-.206.007-.413-.002-.618-.014-.347-.264-.648-.615-.664a.887.887 0 00-.84.445c-.058.117-.072.248-.072.379v4.913c0 .527.073 1.029.36 1.484a2.14 2.14 0 001.071.885c.455.182.929.304 1.416.378a19.1 19.1 0 003.856.165c.711-.04 1.407-.145 2.073-.388.74-.27 1.269-.768 1.48-1.547.115-.426.159-.868.199-1.308l.968-9.422.093-.91c.023-.219.029-.46.173-.636.078-.095.194-.131.309-.154.695-.14 1.363-.368 1.961-.72.622-.365 1.053-.852 1.125-1.569.035-.353.01-.711-.047-1.06zM12.524 18.507v-.002l.002.002z"/></svg>
+        Offrir un café
+      </a>
+      <a href="https://buy.stripe.com/14A5kDb9dapE84S5Pm9k40h" target="_blank" class="btn btn-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        Soutenir via Stripe
+      </a>
+    </div>
+    <p class="sponsor-note">
+      Chaque contribution, même la plus petite, fait une vraie différence. Merci ! 🙏
+    </p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-links">
+      <a href="https://github.com/hugomusicmusic/hms-commandboard">GitHub</a>
+      <a href="https://github.com/hugomusicmusic/hms-commandboard/releases">Releases</a>
+      <a href="https://github.com/hugomusicmusic/hms-commandboard/issues">Signaler un bug</a>
+      <a href="#soutenir">Soutenir</a>
+    </div>
+    <p>
+      Mon Gouvernail est un projet open-source sous licence MIT.<br/>
+      Fait avec passion par <a href="https://github.com/hugomusicmusic">Hugo Morales</a>.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

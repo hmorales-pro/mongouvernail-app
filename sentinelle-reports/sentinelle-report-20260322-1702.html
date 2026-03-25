@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sentinelle — Rapport de tests</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f1117; color: #e1e4e8; line-height: 1.6; }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem; }
+
+    /* Header */
+    .header { text-align: center; padding: 2rem 0; border-bottom: 1px solid #21262d; margin-bottom: 2rem; }
+    .header h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .header h1 span { color: #58a6ff; }
+    .header .meta { color: #8b949e; font-size: 0.9rem; }
+
+    /* Score bar */
+    .score-section { margin-bottom: 2rem; }
+    .score-bar-bg { width: 100%; height: 12px; background: #21262d; border-radius: 6px; overflow: hidden; margin: 1rem 0; }
+    .score-bar { height: 100%; border-radius: 6px; transition: width 0.5s ease; }
+    .score-bar.green { background: #3fb950; }
+    .score-bar.yellow { background: #d29922; }
+    .score-bar.red { background: #f85149; }
+    .score-stats { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; }
+    .stat { text-align: center; }
+    .stat .value { font-size: 1.5rem; font-weight: 700; }
+    .stat .label { color: #8b949e; font-size: 0.85rem; }
+    .stat .value.pass { color: #3fb950; }
+    .stat .value.fail { color: #f85149; }
+    .stat .value.retry { color: #d29922; }
+
+    /* Scenarios */
+    .scenario { background: #161b22; border: 1px solid #21262d; border-radius: 8px; margin-bottom: 1rem; overflow: hidden; }
+    .scenario-header { padding: 1rem 1.25rem; cursor: pointer; display: flex; align-items: center; gap: 0.75rem; }
+    .scenario-header:hover { background: #1c2128; }
+    .scenario-header .icon { font-size: 1.2rem; flex-shrink: 0; }
+    .scenario-header .name { font-weight: 600; flex: 1; }
+    .scenario-header .badge { font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 999px; font-weight: 500; }
+    .badge.passed { background: #1a3a2a; color: #3fb950; }
+    .badge.failed { background: #3d1a1a; color: #f85149; }
+    .badge.retried { background: #3d2e0a; color: #d29922; }
+    .scenario-header .duration { color: #8b949e; font-size: 0.85rem; }
+    .scenario-header .confidence { color: #8b949e; font-size: 0.8rem; margin-left: 0.5rem; }
+    .scenario-body { display: none; padding: 0 1.25rem 1.25rem; border-top: 1px solid #21262d; }
+    .scenario.open .scenario-body { display: block; }
+
+    /* Steps */
+    .step { padding: 0.5rem 0; border-bottom: 1px solid #1c2128; font-size: 0.9rem; display: flex; align-items: flex-start; gap: 0.5rem; }
+    .step:last-child { border-bottom: none; }
+    .step .step-icon { flex-shrink: 0; }
+    .step .step-detail { flex: 1; }
+    .step .step-action { color: #58a6ff; font-family: monospace; font-size: 0.85rem; }
+    .step .step-selector { color: #8b949e; font-family: monospace; font-size: 0.8rem; word-break: break-all; }
+    .step .step-error { color: #f85149; font-size: 0.85rem; margin-top: 0.25rem; word-break: break-word; }
+
+    /* Screenshot */
+    .screenshot { margin-top: 0.75rem; }
+    .screenshot img { max-width: 100%; border-radius: 6px; border: 1px solid #21262d; }
+    .screenshot-label { color: #8b949e; font-size: 0.8rem; margin-bottom: 0.25rem; }
+
+    /* Footer */
+    .footer { text-align: center; padding: 2rem 0; color: #484f58; font-size: 0.85rem; border-top: 1px solid #21262d; margin-top: 2rem; }
+
+    /* Toggle */
+    .toggle-all { text-align: right; margin-bottom: 1rem; }
+    .toggle-all button { background: #21262d; color: #8b949e; border: 1px solid #30363d; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+    .toggle-all button:hover { background: #30363d; color: #e1e4e8; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🛡️ <span>Sentinelle</span> — Rapport de tests</h1>
+      <div class="meta">http://localhost:5173 — 22 mars 2026 à 17:02 — 141.7s</div>
+    </div>
+
+    <div class="score-section">
+      <div class="score-bar-bg">
+        <div class="score-bar yellow" style="width: 55%"></div>
+      </div>
+      <div class="score-stats">
+        <div class="stat"><div class="value">20</div><div class="label">Total</div></div>
+        <div class="stat"><div class="value pass">11</div><div class="label">Passés</div></div>
+        <div class="stat"><div class="value fail">0</div><div class="label">Échoués</div></div>
+        <div class="stat"><div class="value retry">9</div><div class="label">Retentés</div></div>
+        <div class="stat"><div class="value">55%</div><div class="label">Taux</div></div>
+        <div class="stat"><div class="value">141.7s</div><div class="label">Durée</div></div>
+      </div>
+    </div>
+
+    <div class="toggle-all">
+      <button onclick="toggleAll()">Tout déplier / replier</button>
+    </div>
+
+    
+    <div class="scenario passed">
+      <div class="scenario-header">
+        <span class="icon">✅</span>
+        <span class="name">Navigation vers CommandCenter</span>
+        <span class="badge passed">passed</span>
+        <span class="confidence">80%</span>
+        <span class="duration">1.0s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie que la page CommandCenter est accessible et se charge correctement</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /CommandCenter</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">assert_url</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario passed">
+      <div class="scenario-header">
+        <span class="icon">✅</span>
+        <span class="name">Navigation vers Tasks</span>
+        <span class="badge passed">passed</span>
+        <span class="confidence">80%</span>
+        <span class="duration">0.6s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie que la page Tasks est accessible et se charge correctement</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /Tasks</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">assert_url</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario passed">
+      <div class="scenario-header">
+        <span class="icon">✅</span>
+        <span class="name">Navigation vers Projects</span>
+        <span class="badge passed">passed</span>
+        <span class="confidence">80%</span>
+        <span class="duration">0.6s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie que la page Projects est accessible et se charge correctement</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /Projects</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">assert_url</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario passed">
+      <div class="scenario-header">
+        <span class="icon">✅</span>
+        <span class="name">Navigation vers Goals</span>
+        <span class="badge passed">passed</span>
+        <span class="confidence">80%</span>
+        <span class="duration">0.6s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie que la page Goals est accessible et se charge correctement</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /Goals</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">assert_url</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario passed">
+      <div class="scenario-header">
+        <span class="icon">✅</span>
+        <span class="name">Navigation vers Finances</span>
+        <span class="badge passed">passed</span>
+        <span class="confidence">80%</span>
+        <span class="duration">0.6s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie que la page Finances est accessible et se charge correctement</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /Finances</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">assert_url</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario passed">
+      <div class="scenario-header">
+        <span class="icon">✅</span>
+        <span class="name">Navigation vers Clients</span>
+        <span class="badge passed">passed</span>
+        <span class="confidence">80%</span>
+        <span class="duration">0.6s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie que la page Clients est accessible et se charge correctement</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /Clients</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">assert_url</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario passed">
+      <div class="scenario-header">
+        <span class="icon">✅</span>
+        <span class="name">Navigation vers SettingsPage</span>
+        <span class="badge passed">passed</span>
+        <span class="confidence">80%</span>
+        <span class="duration">0.6s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie que la page Settings est accessible et se charge correctement</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /SettingsPage</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">assert_url</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario passed">
+      <div class="scenario-header">
+        <span class="icon">✅</span>
+        <span class="name">Navigation vers Trash</span>
+        <span class="badge passed">passed</span>
+        <span class="confidence">80%</span>
+        <span class="duration">0.6s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie que la page Trash est accessible et se charge correctement</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /Trash</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">assert_url</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario retried">
+      <div class="scenario-header">
+        <span class="icon">↩️</span>
+        <span class="name">Navigation via Sidebar vers Tasks</span>
+        <span class="badge retried">retried</span>
+        <span class="confidence">65%</span>
+        <span class="duration">16.2s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie que la sidebar permet de naviguer vers la page Tasks</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /CommandCenter</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#d29922">↩</span>
+      <div class="step-detail">
+        <span class="step-action">fill</span><div class="step-selector">input[placeholder='Votre prénom']</div><div class="step-selector">→ Test</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#d29922">↩</span>
+      <div class="step-detail">
+        <span class="step-action">click</span><div class="step-selector">button:has-text('Continuer')</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#d29922">↩</span>
+      <div class="step-detail">
+        <span class="step-action">assert_url</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario retried">
+      <div class="scenario-header">
+        <span class="icon">↩️</span>
+        <span class="name">Navigation via Sidebar vers Projects</span>
+        <span class="badge retried">retried</span>
+        <span class="confidence">65%</span>
+        <span class="duration">19.5s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie que la sidebar permet de naviguer vers la page Projects</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /CommandCenter</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#d29922">↩</span>
+      <div class="step-detail">
+        <span class="step-action">fill</span><div class="step-selector">input[placeholder='Votre prénom']</div><div class="step-selector">→ Test</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#d29922">↩</span>
+      <div class="step-detail">
+        <span class="step-action">click</span><div class="step-selector">button:has-text('Continuer')</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#d29922">↩</span>
+      <div class="step-detail">
+        <span class="step-action">assert_url</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario retried">
+      <div class="scenario-header">
+        <span class="icon">↩️</span>
+        <span class="name">Navigation via Sidebar vers Clients</span>
+        <span class="badge retried">retried</span>
+        <span class="confidence">65%</span>
+        <span class="duration">14.8s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie que la sidebar permet de naviguer vers la page Clients</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /CommandCenter</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#d29922">↩</span>
+      <div class="step-detail">
+        <span class="step-action">fill</span><div class="step-selector">input[placeholder='Votre prénom']</div><div class="step-selector">→ Test</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#d29922">↩</span>
+      <div class="step-detail">
+        <span class="step-action">click</span><div class="step-selector">button:has-text('Continuer')</div></div></div>
+      </div>
+    </div>
+
+    <div class="scenario retried">
+      <div class="scenario-header">
+        <span class="icon">↩️</span>
+        <span class="name">Interaction clic sur la page Tasks</span>
+        <span class="badge retried">retried</span>
+        <span class="confidence">65%</span>
+        <span class="duration">13.5s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie qu'un élément cliquable est présent et réagit sur la page Tasks</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /Tasks</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">assert_element</span><div class="step-selector">button, [role='button'], [class*='btn'], [class*='button']</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#d29922">↩</span>
+      <div class="step-detail">
+        <span class="step-action">fill</span><div class="step-selector">input[placeholder='Votre prénom']</div><div class="step-selector">→ Jean</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario passed">
+      <div class="scenario-header">
+        <span class="icon">✅</span>
+        <span class="name">Saisie dans un champ sur la page Tasks</span>
+        <span class="badge passed">passed</span>
+        <span class="confidence">62%</span>
+        <span class="duration">0.6s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie qu'un champ de saisie est présent et accepte une valeur sur la page Tasks</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /Tasks</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">assert_element</span><div class="step-selector">input, textarea, [contenteditable='true']</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">fill</span><div class="step-selector">input:first-of-type, textarea:first-of-type</div><div class="step-selector">→ Test Sentinelle</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario retried">
+      <div class="scenario-header">
+        <span class="icon">↩️</span>
+        <span class="name">Interaction clic sur la page Projects</span>
+        <span class="badge retried">retried</span>
+        <span class="confidence">65%</span>
+        <span class="duration">13.2s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie qu'un bouton ou élément cliquable est présent sur la page Projects</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /Projects</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">assert_element</span><div class="step-selector">button, [role='button'], [class*='btn']</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#d29922">↩</span>
+      <div class="step-detail">
+        <span class="step-action">fill</span><div class="step-selector">input[placeholder='Votre prénom']</div><div class="step-selector">→ Jean</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario retried">
+      <div class="scenario-header">
+        <span class="icon">↩️</span>
+        <span class="name">Modification d'un paramètre sur SettingsPage</span>
+        <span class="badge retried">retried</span>
+        <span class="confidence">62%</span>
+        <span class="duration">13.9s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie qu'un champ ou toggle est modifiable sur la page Settings</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /SettingsPage</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">assert_element</span><div class="step-selector">input, select, textarea, [role='switch'], [class*='toggle']</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#d29922">↩</span>
+      <div class="step-detail">
+        <span class="step-action">fill</span><div class="step-selector">input[placeholder='Votre prénom']</div><div class="step-selector">→ Jean</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario retried">
+      <div class="scenario-header">
+        <span class="icon">↩️</span>
+        <span class="name">Interaction sur la page Trash</span>
+        <span class="badge retried">retried</span>
+        <span class="confidence">65%</span>
+        <span class="duration">2.5s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie que la page Trash affiche des éléments et propose des actions de restauration ou suppression</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /Trash</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#d29922">↩</span>
+      <div class="step-detail">
+        <span class="step-action">assert_element</span><div class="step-selector">input[placeholder='Votre prénom']</div></div></div>
+      </div>
+    </div>
+
+    <div class="scenario passed">
+      <div class="scenario-header">
+        <span class="icon">✅</span>
+        <span class="name">Saisie dans un champ sur la page Finances</span>
+        <span class="badge passed">passed</span>
+        <span class="confidence">62%</span>
+        <span class="duration">0.6s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie qu'un champ de saisie numérique ou texte est disponible sur la page Finances</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /Finances</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">assert_element</span><div class="step-selector">input, textarea, [class*='input']</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">fill</span><div class="step-selector">input[type='number']:first-of-type, input:first-of-type</div><div class="step-selector">→ 42</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario retried">
+      <div class="scenario-header">
+        <span class="icon">↩️</span>
+        <span class="name">Interaction clic sur la page Goals</span>
+        <span class="badge retried">retried</span>
+        <span class="confidence">65%</span>
+        <span class="duration">13.0s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie qu'un élément cliquable est présent et réagit sur la page Goals</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /Goals</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">assert_element</span><div class="step-selector">button, [role='button'], [class*='btn']</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#d29922">↩</span>
+      <div class="step-detail">
+        <span class="step-action">fill</span><div class="step-selector">input[placeholder='Votre prénom']</div><div class="step-selector">→ Jean</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario passed">
+      <div class="scenario-header">
+        <span class="icon">✅</span>
+        <span class="name">Saisie dans un champ sur la page Clients</span>
+        <span class="badge passed">passed</span>
+        <span class="confidence">62%</span>
+        <span class="duration">0.6s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie qu'un champ de recherche ou saisie est disponible sur la page Clients</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /Clients</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">assert_element</span><div class="step-selector">input, [role='searchbox'], input[type='search'], input[type='text']</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">fill</span><div class="step-selector">input:first-of-type</div><div class="step-selector">→ Test Sentinelle</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+      </div>
+    </div>
+
+    <div class="scenario retried">
+      <div class="scenario-header">
+        <span class="icon">↩️</span>
+        <span class="name">Collapse et expand de la Sidebar</span>
+        <span class="badge retried">retried</span>
+        <span class="confidence">60%</span>
+        <span class="duration">27.6s</span>
+      </div>
+      <div class="scenario-body">
+        <p style="color:#8b949e;margin-bottom:0.75rem;font-size:0.9rem">Vérifie que la sidebar peut être réduite et étendue via un bouton toggle</p>
+        
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">navigate</span><div class="step-selector">→ /CommandCenter</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#d29922">↩</span>
+      <div class="step-detail">
+        <span class="step-action">fill</span><div class="step-selector">input[placeholder='Votre prénom']</div><div class="step-selector">→ Test</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#d29922">↩</span>
+      <div class="step-detail">
+        <span class="step-action">click</span><div class="step-selector">button:has-text('Continuer')</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#d29922">↩</span>
+      <div class="step-detail">
+        <span class="step-action">click</span><div class="step-selector">text=Freelance / Indépendant</div></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">wait</span></div></div>
+
+    <div class="step">
+      <span class="step-icon" style="color:#3fb950">✓</span>
+      <div class="step-detail">
+        <span class="step-action">screenshot</span></div></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Généré par Sentinelle v0.1.0 — Agent IA de tests fonctionnels
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('.scenario-header').forEach(header => {
+      header.addEventListener('click', () => {
+        header.parentElement.classList.toggle('open');
+      });
+    });
+    // Auto-ouvrir les scénarios échoués
+    document.querySelectorAll('.scenario.failed, .scenario.retried').forEach(s => s.classList.add('open'));
+
+    function toggleAll() {
+      const scenarios = document.querySelectorAll('.scenario');
+      const allOpen = [...scenarios].every(s => s.classList.contains('open'));
+      scenarios.forEach(s => allOpen ? s.classList.remove('open') : s.classList.add('open'));
+    }
+  </script>
+</body>
+</html>
