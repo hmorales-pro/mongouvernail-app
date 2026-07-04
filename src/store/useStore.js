@@ -56,6 +56,15 @@ const useStore = create(
         activite: '',
       },
 
+      // ── IA locale (global — Zustand only, propre à la machine) ──
+      aiSettings: {
+        enabled: false,
+        baseUrl: 'http://localhost:11434',
+        model: '',
+      },
+      setAiSettings: (patch) =>
+        set((s) => ({ aiSettings: { ...s.aiSettings, ...patch } })),
+
       // ── Workspace state ──
       workspaces: [],
       activeWorkspaceId: null,
@@ -88,6 +97,7 @@ const useStore = create(
         taches: true,
         calendrier: true,
         documents: true,
+        assistant: true,
       },
 
       // ── Personalisation (per workspace → settingsDB) ──
@@ -367,7 +377,7 @@ const useStore = create(
         const defaults = {
           commandCenterName: 'Command Center',
           folderClickMode: 'single',
-          enabledModules: { clients: true, projets: true, finances: true, objectifs: true, taches: true, calendrier: true, documents: true },
+          enabledModules: { clients: true, projets: true, finances: true, objectifs: true, taches: true, calendrier: true, documents: true, assistant: true },
           notificationSettings: { delaiJours: 3, dismissedIds: [] },
         }
         set({
@@ -602,6 +612,7 @@ const useStore = create(
         commandPaletteOpen: false,
         onboardingDone: state.onboardingDone,
         userProfile: state.userProfile,
+        aiSettings: state.aiSettings,
       }),
     }
   )

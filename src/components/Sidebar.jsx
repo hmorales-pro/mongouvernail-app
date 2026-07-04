@@ -9,6 +9,7 @@ import {
   ListTodo,
   CalendarDays,
   FileText,
+  Sparkles,
   Command,
   Sun,
   Moon,
@@ -31,6 +32,7 @@ const links = [
   { to: '/taches', icon: ListTodo, label: 'Tâches', key: 'taches' },
   { to: '/calendrier', icon: CalendarDays, label: 'Calendrier', key: 'calendrier' },
   { to: '/documents', icon: FileText, label: 'Documents', key: 'documents' },
+  { to: '/assistant', icon: Sparkles, label: 'Assistant', key: 'assistant' },
 ]
 
 function WorkspaceSelector() {
