@@ -299,6 +299,23 @@ function AiSettingsSection() {
             />
           )}
         </div>
+
+        {/* Modèle d'embedding (recherche sémantique) */}
+        <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm" style={{ color: 'var(--text-primary)' }}>Modèle d'embedding</p>
+            <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+              Pour la recherche sémantique — <code className="font-mono">ollama pull nomic-embed-text</code>
+            </p>
+          </div>
+          <input
+            type="text"
+            value={aiSettings.embedModel || ''}
+            onChange={(e) => setAiSettings({ embedModel: e.target.value })}
+            className="t-input rounded px-2.5 py-1 text-sm outline-none w-52 text-right font-mono text-xs"
+            placeholder="nomic-embed-text"
+          />
+        </div>
       </div>
     </section>
   )

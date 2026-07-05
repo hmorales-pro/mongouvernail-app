@@ -61,6 +61,7 @@ const useStore = create(
         enabled: false,
         baseUrl: 'http://localhost:11434',
         model: '',
+        embedModel: 'nomic-embed-text',
       },
       setAiSettings: (patch) =>
         set((s) => ({ aiSettings: { ...s.aiSettings, ...patch } })),
