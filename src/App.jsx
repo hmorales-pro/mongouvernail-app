@@ -18,6 +18,7 @@ import Trash from './pages/Trash'
 import SettingsPage from './pages/SettingsPage'
 import Calendar from './pages/Calendar'
 import Documents from './pages/Documents'
+import Assistant from './pages/Assistant'
 
 function App() {
   const initialize = useStore((s) => s.initialize)
@@ -127,6 +128,7 @@ function App() {
             <Route path="/taches" element={<Tasks />} />
             <Route path="/calendrier" element={<Calendar />} />
             <Route path="/documents" element={<Documents />} />
+            <Route path="/assistant" element={<Assistant />} />
             <Route path="/corbeille" element={<Trash />} />
             <Route path="/parametres" element={<SettingsPage />} />
           </Routes>

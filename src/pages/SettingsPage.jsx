@@ -23,7 +23,12 @@ import {
   FileText,
   Bell,
   FolderOpen,
+  Sparkles,
+  RefreshCw,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react'
+import { checkOllama, DEFAULT_BASE_URL } from '../ai/ollama'
 import useStore from '../store/useStore'
 import { getBackupSettings, setBackupSettings } from '../db/dbManager'
 import { getAppVersion } from '../utils/updateChecker'
@@ -159,6 +164,163 @@ function WorkspaceCard({ ws, isActive, onSwitch, onRename, onDelete, onColorChan
   )
 }
 
+function AiSettingsSection() {
+  const aiSettings = useStore((s) => s.aiSettings)
+  const setAiSettings = useStore((s) => s.setAiSettings)
+  const [test, setTest] = useState({ state: 'idle', models: [], error: null })
+  const [urlDraft, setUrlDraft] = useState(aiSettings.baseUrl || DEFAULT_BASE_URL)
+
+  const runTest = async (url = urlDraft) => {
+    setTest({ state: 'checking', models: [], error: null })
+    const res = await checkOllama(url)
+    if (res.ok) {
+      setTest({ state: 'ok', models: res.models, error: null })
+      // Sélectionne un modèle par défaut si aucun n'est choisi.
+      if (!aiSettings.model && res.models.length) {
+        setAiSettings({ model: res.models[0] })
+      }
+    } else {
+      setTest({ state: 'error', models: [], error: res.error })
+    }
+  }
+
+  return (
+    <section className="mb-8">
+      <h2 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2 mb-3" style={{ color: 'var(--text-tertiary)' }}>
+        <Sparkles size={14} /> IA locale
+      </h2>
+      <p className="text-[11px] mb-4" style={{ color: 'var(--text-tertiary)' }}>
+        L'assistant tourne entièrement sur votre machine via{' '}
+        <a href="https://ollama.com" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">Ollama</a>.
+        Aucune donnée n'est envoyée sur Internet. Installez Ollama, lancez{' '}
+        <code className="font-mono">ollama pull llama3.2</code>, puis testez la connexion ci-dessous.
+      </p>
+
+      <div className="t-card-flat rounded-lg divide-y" style={{ borderColor: 'var(--border-secondary)' }}>
+        {/* Activation */}
+        <div className="flex items-center gap-3 px-4 py-3">
+          <Sparkles size={16} style={{ color: aiSettings.enabled ? 'var(--text-secondary)' : 'var(--text-muted)' }} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm" style={{ color: aiSettings.enabled ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+              Activer l'assistant IA
+            </p>
+            <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+              Affiche l'assistant et autorise les requêtes locales
+            </p>
+          </div>
+          <button
+            onClick={() => setAiSettings({ enabled: !aiSettings.enabled })}
+            className="relative w-9 h-5 rounded-full transition-colors flex-shrink-0"
+            style={{ background: aiSettings.enabled ? '#3B82F6' : 'var(--bg-nested)' }}
+          >
+            <div
+              className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all"
+              style={{ left: aiSettings.enabled ? '18px' : '2px' }}
+            />
+          </button>
+        </div>
+
+        {/* Adresse du serveur */}
+        <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm" style={{ color: 'var(--text-primary)' }}>Adresse Ollama</p>
+            <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Serveur local par défaut : {DEFAULT_BASE_URL}</p>
+          </div>
+          <input
+            type="text"
+            value={urlDraft}
+            onChange={(e) => setUrlDraft(e.target.value)}
+            onBlur={() => setAiSettings({ baseUrl: urlDraft.trim() || DEFAULT_BASE_URL })}
+            className="t-input rounded px-2.5 py-1 text-sm outline-none w-52 text-right font-mono text-xs"
+            placeholder={DEFAULT_BASE_URL}
+          />
+        </div>
+
+        {/* Test de connexion */}
+        <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm" style={{ color: 'var(--text-primary)' }}>Connexion</p>
+            <div className="text-[11px] flex items-center gap-1.5 mt-0.5">
+              {test.state === 'ok' && (
+                <span className="flex items-center gap-1" style={{ color: '#10B981' }}>
+                  <CheckCircle2 size={12} /> Connecté — {test.models.length} modèle(s)
+                </span>
+              )}
+              {test.state === 'error' && (
+                <span className="flex items-center gap-1" style={{ color: '#EF4444' }}>
+                  <XCircle size={12} /> {test.error || 'Ollama ne répond pas'}
+                </span>
+              )}
+              {test.state === 'checking' && (
+                <span style={{ color: 'var(--text-tertiary)' }}>Vérification…</span>
+              )}
+              {test.state === 'idle' && (
+                <span style={{ color: 'var(--text-tertiary)' }}>Non testée</span>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={() => runTest()}
+            disabled={test.state === 'checking'}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors disabled:opacity-50"
+            style={{ background: 'var(--bg-nested)', color: 'var(--text-secondary)' }}
+          >
+            <RefreshCw size={13} className={test.state === 'checking' ? 'animate-spin' : ''} />
+            Tester
+          </button>
+        </div>
+
+        {/* Sélection du modèle */}
+        <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm" style={{ color: 'var(--text-primary)' }}>Modèle</p>
+            <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+              {test.models.length ? 'Choisissez parmi les modèles installés' : 'Testez la connexion pour lister les modèles'}
+            </p>
+          </div>
+          {test.models.length ? (
+            <select
+              value={aiSettings.model || ''}
+              onChange={(e) => setAiSettings({ model: e.target.value })}
+              className="t-input rounded px-2.5 py-1 text-sm outline-none w-52 font-mono text-xs"
+            >
+              <option value="" disabled>Sélectionner…</option>
+              {test.models.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={aiSettings.model || ''}
+              onChange={(e) => setAiSettings({ model: e.target.value })}
+              className="t-input rounded px-2.5 py-1 text-sm outline-none w-52 text-right font-mono text-xs"
+              placeholder="llama3.2"
+            />
+          )}
+        </div>
+
+        {/* Modèle d'embedding (recherche sémantique) */}
+        <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm" style={{ color: 'var(--text-primary)' }}>Modèle d'embedding</p>
+            <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+              Pour la recherche sémantique — <code className="font-mono">ollama pull nomic-embed-text</code>
+            </p>
+          </div>
+          <input
+            type="text"
+            value={aiSettings.embedModel || ''}
+            onChange={(e) => setAiSettings({ embedModel: e.target.value })}
+            className="t-input rounded px-2.5 py-1 text-sm outline-none w-52 text-right font-mono text-xs"
+            placeholder="nomic-embed-text"
+          />
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function SettingsPage() {
   const workspaces = useStore((s) => s.workspaces)
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId)
@@ -259,6 +421,9 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* ── IA locale ── */}
+      <AiSettingsSection />
+
       {/* ── Modules ── */}
       <section className="mb-8">
         <h2 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2 mb-3" style={{ color: 'var(--text-tertiary)' }}>
@@ -293,6 +458,7 @@ export default function SettingsPage() {
             { key: 'taches', icon: ListTodo, label: 'Tâches', desc: 'Liste de tâches et to-dos' },
             { key: 'calendrier', icon: CalendarDays, label: 'Calendrier', desc: 'Vue calendrier des échéances' },
             { key: 'documents', icon: FileText, label: 'Documents', desc: 'Stockage et gestion de fichiers' },
+            { key: 'assistant', icon: Sparkles, label: 'Assistant IA', desc: 'Assistant local propulsé par Ollama' },
           ].map(({ key, icon: Icon, label, desc }) => (
             <div
               key={key}

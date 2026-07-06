@@ -234,6 +234,7 @@ export async function initDB(workspaceId = null) {
   } else {
     db = new SQL.Database()
     db.run(SCHEMA)
+    runMigrations() // New DB: base SCHEMA lacks ALTER-added columns
   }
 
   await flushToDisk()
@@ -263,6 +264,7 @@ export async function switchDB(workspaceId) {
   } else {
     db = new SQL.Database()
     db.run(SCHEMA)
+    runMigrations() // New DB: base SCHEMA lacks ALTER-added columns
   }
 
   await flushToDisk()
